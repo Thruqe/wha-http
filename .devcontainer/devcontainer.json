@@ -10,7 +10,8 @@
             "extensions": [
                 "Oven.bun-vscode",
                 "esbenp.prettier-vscode",
-                "yy0931.vscode-sqlite3-editor"
+                "yy0931.vscode-sqlite3-editor",
+                "astro-build.astro-vscode"
             ]
         }
     },

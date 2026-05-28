@@ -1,0 +1,492 @@
+---
+export const prerender = false
+---
+
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta name="generator" content={Astro.generator} />
+		<title>zevBot</title>
+		<style>
+			*,
+			*::before,
+			*::after {
+				box-sizing: border-box;
+				margin: 0;
+				padding: 0;
+			}
+
+			body {
+				font-family:
+					system-ui,
+					-apple-system,
+					BlinkMacSystemFont,
+					"Segoe UI",
+					Roboto,
+					sans-serif;
+				font-size: 15px;
+				color: #111;
+				background: #fff;
+				padding: 1rem;
+				max-width: 860px;
+				margin: 0 auto;
+			}
+
+			h1 {
+				font-size: 22px;
+				font-weight: 500;
+				margin-bottom: 0.2rem;
+			}
+			.sub {
+				font-size: 13px;
+				color: #666;
+				margin-bottom: 1.25rem;
+				line-height: 1.4;
+			}
+
+			.connect-row {
+				display: flex;
+				gap: 8px;
+				margin-bottom: 1rem;
+				flex-wrap: wrap;
+			}
+
+			.connect-row input {
+				flex: 2;
+				min-width: 200px;
+				padding: 0 12px;
+				height: 38px;
+				border: 0.5px solid #bbb;
+				border-radius: 8px;
+				font-size: 15px;
+				width: 100%;
+			}
+
+			.connect-row input:focus {
+				outline: none;
+				box-shadow: 0 0 0 2px #b5d4f4;
+			}
+
+			button {
+				padding: 0 14px;
+				height: 38px;
+				border: 0.5px solid #bbb;
+				border-radius: 8px;
+				background: transparent;
+				font-size: 13px;
+				cursor: pointer;
+				white-space: nowrap;
+				display: inline-flex;
+				align-items: center;
+				gap: 6px;
+				justify-content: center;
+				transition:
+					background-color 0.2s,
+					border-color 0.2s;
+			}
+
+			button:hover {
+				background: #f5f5f3;
+			}
+			button:disabled {
+				opacity: 0.35;
+				cursor: default;
+				pointer-events: none;
+			}
+			button.active {
+				background: #e6f1fb;
+				border-color: #85b7eb;
+				color: #0c447c;
+			}
+
+			.status-bar {
+				display: flex;
+				align-items: center;
+				gap: 8px;
+				margin-bottom: 0.6rem;
+				font-size: 13px;
+				color: #666;
+				flex-wrap: wrap;
+			}
+
+			.dot {
+				width: 8px;
+				height: 8px;
+				border-radius: 50%;
+				background: #ccc;
+				flex-shrink: 0;
+				transition: background 0.2s;
+			}
+			.dot.connected {
+				background: #3b6d11;
+			}
+			.dot.connecting {
+				background: #ba7517;
+			}
+			.dot.error {
+				background: #a32d2d;
+			}
+
+			.log-wrap {
+				border: 0.5px solid #ddd;
+				border-radius: 12px;
+				overflow: hidden;
+				background: #f8f8f6;
+			}
+
+			.log-toolbar {
+				display: flex;
+				align-items: center;
+				gap: 8px;
+				padding: 8px 12px;
+				border-bottom: 0.5px solid #ddd;
+				background: #fff;
+				flex-wrap: wrap;
+			}
+
+			.log-toolbar .toolbar-label {
+				font-size: 12px;
+				color: #666;
+				margin-right: auto;
+			}
+
+			.log-toolbar button {
+				height: 28px;
+				font-size: 11px;
+				padding: 0 10px;
+				border-radius: 6px;
+			}
+
+			.log {
+				padding: 0.75rem;
+				min-height: 220px;
+				font-family: monospace;
+				font-size: 12.5px;
+				line-height: 1.65;
+				overflow-y: auto;
+				max-height: 420px;
+			}
+
+			.log-entry {
+				display: grid;
+				grid-template-columns: 62px 76px 1fr;
+				gap: 0 8px;
+				padding: 4px 0;
+				border-bottom: 0.5px solid rgba(0, 0, 0, 0.05);
+			}
+			.log-entry:last-child {
+				border-bottom: none;
+			}
+
+			.ts {
+				color: #999;
+				font-size: 12px;
+			}
+			.tag {
+				font-weight: 500;
+				font-size: 12px;
+			}
+			.tag.info {
+				color: #185fa5;
+			}
+			.tag.warn {
+				color: #ba7517;
+			}
+			.tag.err {
+				color: #a32d2d;
+			}
+			.tag.event {
+				color: #3b6d11;
+			}
+			.msg {
+				word-break: break-all;
+				font-size: 12px;
+			}
+
+			@media (min-width: 600px) {
+				body {
+					padding: 2rem;
+				}
+				.log {
+					max-height: 520px;
+				}
+			}
+
+			@media (max-width: 540px) {
+				.connect-row {
+					flex-direction: column;
+					align-items: stretch;
+					gap: 8px;
+				}
+				.connect-row button {
+					width: 100%;
+				}
+				.log-entry {
+					grid-template-columns: auto auto;
+					justify-content: start;
+					align-items: baseline;
+					gap: 2px 8px;
+					padding: 6px 0;
+				}
+				.log-entry .msg {
+					grid-column: 1 / -1;
+					margin-top: 2px;
+				}
+				.log-toolbar {
+					justify-content: space-between;
+				}
+				.log-toolbar .toolbar-label {
+					width: 100%;
+					margin-bottom: 4px;
+				}
+				.log-toolbar button {
+					flex: 1;
+				}
+			}
+		</style>
+	</head>
+	<body>
+		<h1>zevBot Monitor</h1>
+		<p class="sub">
+			Enter a phone number to authenticate and open a live WebSocket connection.
+		</p>
+
+		<div class="connect-row">
+			<input type="text" id="phone" placeholder="+1234567890" />
+			<button id="connectBtn">Connect</button>
+			<button id="disconnectBtn" disabled>Disconnect</button>
+		</div>
+
+		<div class="status-bar">
+			<div class="dot" id="dot"></div>
+			<span id="statusText">Disconnected</span>
+			<span style="margin-left: auto; font-size: 12px;" id="countLabel"
+				>0 events</span
+			>
+		</div>
+
+		<div class="log-wrap">
+			<div class="log-toolbar">
+				<span class="toolbar-label">event log</span>
+				<button
+					id="autoscrollBtn"
+					class="active"
+					aria-pressed="true"
+					title="Toggle autoscroll"
+				>
+					<svg
+						width="13"
+						height="13"
+						viewBox="0 0 16 16"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="1.5"
+						aria-hidden="true"
+					>
+						<path d="M8 3v7M5 7l3 3 3-3"></path><path d="M3 13h10"></path>
+					</svg>
+					autoscroll
+				</button>
+				<button id="clearBtn" title="Clear log">
+					<svg
+						width="13"
+						height="13"
+						viewBox="0 0 16 16"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="1.5"
+						aria-hidden="true"
+					>
+						<path d="M3 4h10M6 4V3h4v1M5 4l.5 9h5l.5-9"></path>
+					</svg>
+					clear
+				</button>
+			</div>
+			<div class="log" id="log">
+				<div class="log-entry">
+					<span class="ts">--:--:--</span>
+					<span class="tag info">[info]</span>
+					<span class="msg">Ready. Enter a phone number and click Connect.</span
+					>
+				</div>
+			</div>
+		</div>
+
+		<script>
+			let ws: WebSocket | null = null;
+			let autoscroll = true;
+			let eventCount = 0;
+
+			const log = document.getElementById("log") as HTMLDivElement;
+			const dot = document.getElementById("dot") as HTMLDivElement;
+			const statusText = document.getElementById(
+				"statusText",
+			) as HTMLSpanElement;
+			const connectBtn = document.getElementById(
+				"connectBtn",
+			) as HTMLButtonElement;
+			const disconnectBtn = document.getElementById(
+				"disconnectBtn",
+			) as HTMLButtonElement;
+			const phoneInput = document.getElementById("phone") as HTMLInputElement;
+			const autoscrollBtn = document.getElementById(
+				"autoscrollBtn",
+			) as HTMLButtonElement;
+			const clearBtn = document.getElementById("clearBtn") as HTMLButtonElement;
+			const countLabel = document.getElementById(
+				"countLabel",
+			) as HTMLSpanElement;
+
+			autoscrollBtn.addEventListener("click", () => {
+				autoscroll = !autoscroll;
+				autoscrollBtn.classList.toggle("active", autoscroll);
+				autoscrollBtn.setAttribute("aria-pressed", String(autoscroll));
+				if (autoscroll) log.scrollTop = log.scrollHeight;
+			});
+
+			log.addEventListener("scroll", () => {
+				const atBottom =
+					log.scrollHeight - log.scrollTop - log.clientHeight < 32;
+				if (!atBottom && autoscroll) {
+					autoscroll = false;
+					autoscrollBtn.classList.remove("active");
+					autoscrollBtn.setAttribute("aria-pressed", "false");
+				}
+			});
+
+			clearBtn.addEventListener("click", () => {
+				log.innerHTML = "";
+				eventCount = 0;
+				countLabel.textContent = "0 events";
+			});
+
+			function ts(): string {
+				return new Date().toTimeString().slice(0, 8);
+			}
+
+			function addLog(level: string, tag: string, msg: string): void {
+				eventCount++;
+				countLabel.textContent = `${eventCount} event${eventCount === 1 ? "" : "s"}`;
+				const entry = document.createElement("div");
+				entry.className = "log-entry";
+				entry.innerHTML = `<span class="ts">${ts()}</span><span class="tag ${level}">${tag}</span><span class="msg">${escHtml(msg)}</span>`;
+				log.appendChild(entry);
+				if (autoscroll) log.scrollTop = log.scrollHeight;
+			}
+
+			function escHtml(s: string): string {
+				return s
+					.replace(/&/g, "&amp;")
+					.replace(/</g, "&lt;")
+					.replace(/>/g, "&gt;");
+			}
+
+			function setStatus(state: string, text: string): void {
+				dot.className = "dot " + state;
+				statusText.textContent = text;
+			}
+
+			connectBtn.addEventListener("click", async () => {
+				const phone = phoneInput.value.trim();
+				if (!phone) {
+					addLog("err", "[error]", "Phone number is required");
+					return;
+				}
+
+				connectBtn.disabled = true;
+				setStatus("connecting", "Setting up...");
+				addLog("info", "[auth]", "Calling setup API...");
+
+				let data: {
+					token: string;
+					user: { email: string; id: string };
+					account: { id: string; phone: string };
+				};
+
+				try {
+					const res = await fetch("/api/setup", {
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({ phone }),
+					});
+					data = await res.json();
+					if (!res.ok) {
+						const err = data as any;
+						addLog(
+							"err",
+							"[error]",
+							err.error +
+								(err.detail ? " — " + JSON.stringify(err.detail) : ""),
+						);
+						setStatus("error", "Setup failed");
+						connectBtn.disabled = false;
+						return;
+					}
+				} catch (e) {
+					addLog(
+						"err",
+						"[error]",
+						"Setup failed: " + (e instanceof Error ? e.message : String(e)),
+					);
+					setStatus("error", "Setup failed");
+					connectBtn.disabled = false;
+					return;
+				}
+
+				const { token, user, account } = data;
+				addLog("info", "[auth]", `Authenticated as ${user.email} (${user.id})`);
+				addLog(
+					"info",
+					"[accounts]",
+					`Account: ${account.id} — ${account.phone}`,
+				);
+				addLog("info", "[ws]", `Connecting to account ${account.id}...`);
+				setStatus("connecting", "Connecting WebSocket...");
+
+				ws = new WebSocket(
+					`ws://${window.location.hostname}:4322?accountId=${account.id}&token=${token}`,
+				);
+
+				ws.onopen = () => {
+					addLog("info", "[ws]", "Connected — waiting for pair code...");
+					setStatus("connected", `Connected — ${account.phone}`);
+					disconnectBtn.disabled = false;
+				};
+
+				ws.onmessage = (e: MessageEvent) => {
+					addLog("info", "[ws:raw]", String(e.data));
+					try {
+						const ev = JSON.parse(e.data as string);
+						if (ev?.type === "connected")
+							addLog("info", "[ws]", `Proxy ready for account ${ev.accountId}`);
+						else if (ev?.type === "error") addLog("err", "[ws]", ev.message);
+						else if (ev?.type === "upstream_closed")
+							addLog("warn", "[ws]", "Upstream closed");
+						else addLog("event", "[event]", JSON.stringify(ev, null, 2));
+					} catch {
+						addLog("event", "[event]", "raw: " + String(e.data));
+					}
+				};
+
+				ws.onclose = (e: CloseEvent) => {
+					addLog("info", "[ws]", `Closed: ${e.code} ${e.reason}`);
+					setStatus("", "Disconnected");
+					connectBtn.disabled = false;
+					disconnectBtn.disabled = true;
+					ws = null;
+				};
+
+				ws.onerror = () => {
+					addLog("err", "[ws]", "WebSocket error");
+					setStatus("error", "Error");
+				};
+			});
+
+			disconnectBtn.addEventListener("click", () =>
+				ws?.close(1000, "User disconnected"),
+			);
+		</script>
+	</body>
+</html>
