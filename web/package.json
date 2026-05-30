@@ -6,12 +6,14 @@
     "node": ">=22.12.0"
   },
   "scripts": {
-    "dev": "astro dev",
+    "dev": "concurrently \"astro dev --host\" \"bun proxy\"",
     "build": "astro build",
     "preview": "astro preview",
-    "astro": "astro"
+    "astro": "astro",
+    "proxy": "bun run ./scripts/ws-proxy.ts"
   },
   "dependencies": {
-    "astro": "^6.3.8"
+    "astro": "6.4.2",
+    "concurrently": "^10.0.0"
   }
 }
