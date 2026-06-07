@@ -1,19 +1,27 @@
-FROM oven/bun:latest
+FROM golang:latest AS builder
 
-ENV rpm=/usr/local/bin/rpm
-ENV zevBot=/usr/local/bin/zevBot
+WORKDIR /app
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+RUN CGO_ENABLED=1 GOOS=linux go build -o wha-http .
+
+FROM debian:bookworm-slim
+
+ENV RPM_BIN=/usr/local/bin/rpm
+ENV ZEVBOT_BIN=/usr/local/bin/zevBot
 
 WORKDIR /app
 
-COPY . .
-
-RUN apt-get update && apt-get install -y wget curl jq \
-    && bun install \
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    wget curl jq ca-certificates \
     && wget -O /usr/local/bin/rpm https://github.com/zevlion/rpm/releases/download/latest/rpm \
     && chmod +x /usr/local/bin/rpm \
     && wget -qO- https://github.com/zevlion/zevBot/releases/download/alpha/zevBot-linux-amd64.tar.gz | tar -xz -C /usr/local/bin/ \
-    && chmod +x /usr/local/bin/zevBot
+    && chmod +x /usr/local/bin/zevBot \
+    && rm -rf /var/lib/apt/lists/*
 
-RUN bun migrate
-    
-CMD ["bun", "start"]
+COPY --from=builder /app/wha-http .
+
+CMD ["./wha-http"]
