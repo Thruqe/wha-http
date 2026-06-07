@@ -21,5 +21,5 @@
             ]
         }
     },
-    "postCreateCommand": "bun install && apt-get update && apt-get install -y wget curl jq && bun add -g @vtsls/language-server && wget -O /usr/local/bin/rpm https://github.com/zevlion/rpm/releases/download/latest/rpm && chmod +x /usr/local/bin/rpm && wget -qO- https://github.com/zevlion/zevBot/releases/download/alpha/zevBot-linux-amd64.tar.gz | tar -xz -C /usr/local/bin/ && chmod +x /usr/local/bin/zevBot"
+    "postCreateCommand": "bun install && apt-get update && apt-get install -y wget curl jq && npm install -g @vtsls/language-server && wget -O /usr/local/bin/rpm https://github.com/zevlion/rpm/releases/download/latest/rpm && chmod +x /usr/local/bin/rpm && wget -qO- https://github.com/zevlion/zevBot/releases/download/alpha/zevBot-linux-amd64.tar.gz | tar -xz -C /usr/local/bin/ && chmod +x /usr/local/bin/zevBot"
 }
