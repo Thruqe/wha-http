@@ -1,4 +1,42 @@
+# Auth & database
 /auth
-*db
-*db-shm
-*db-wal
+*.db
+*.db-shm
+*.db-wal
+
+# Binaries & diagrams
+*.exe
+*.dgm
+
+# Go binaries (Linux/macOS)
+/bin/
+*.out
+*.test
+*.bench
+
+# Go build cache & modules
+vendor/
+go.sum.bak
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor & IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Env & secrets
+.env
+.env.*
+*.pem
+*.key
+
+# Logs & temp
+*.log
+tmp/
+temp/
