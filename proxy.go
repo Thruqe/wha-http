@@ -27,7 +27,7 @@ var (
 	mu          sync.RWMutex
 	subscribers = map[string]map[*client]struct{}{}
 	upstreams   = map[string]*websocket.Conn{}
-	upstreamCtx = map[string]context.CancelFunc{}
+	upstreamCtx = map[string]context.Context{} // FIXED: Storing context.Context instead of CancelFunc
 	lastEvent   = map[string][]byte{}
 )
 
@@ -170,7 +170,7 @@ func connectUpstream(accountID, phone string, port int) {
 	}
 	if conn != nil {
 		mu.Lock()
-		upstreamCtx[accountID] = connCancel
+		upstreamCtx[accountID] = connCtx // FIXED: Assigning connCtx instead of connCancel
 		mu.Unlock()
 		go runUpstreamConn(accountID, phone, port, conn, connCtx)
 		return
@@ -197,7 +197,7 @@ func connectUpstream(accountID, phone string, port int) {
 		}
 		if conn != nil {
 			mu.Lock()
-			upstreamCtx[accountID] = connCancel
+			upstreamCtx[accountID] = connCtx // FIXED: Assigning connCtx instead of connCancel
 			mu.Unlock()
 			go runUpstreamConn(accountID, phone, port, conn, connCtx)
 			return

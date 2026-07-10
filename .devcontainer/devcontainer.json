@@ -1,50 +1,50 @@
 {
-	"name": "WHA-HTTP",
-	"image": "golang:latest",
-	"containerEnv": {
-		"RPM_BIN": "/usr/local/bin/rpm",
-		"ZEVBOT_BIN": "/usr/local/bin/zevBot"
-	},
-	"features": {
-		"ghcr.io/devcontainers/features/node:1": {
-			"version": "24"
-		}
-	},
-	"customizations": {
-		"vscode": {
-			"extensions": [
-				"golang.go",
-				"svelte.svelte-vscode",
-				"esbenp.prettier-vscode",
-				"tamasfe.even-better-toml",
-				"yy0931.vscode-sqlite3-editor"
-			],
-			"settings": {
-				"editor.formatOnSave": true,
-				"editor.defaultFormatter": "esbenp.prettier-vscode",
-				"[go]": {
-					"editor.defaultFormatter": "golang.go",
-					"editor.codeActionsOnSave": {
-						"source.organizeImports": "explicit"
-					}
-				},
-				"[svelte]": {
-					"editor.defaultFormatter": "svelte.svelte-vscode"
-				},
-				"[toml]": {
-					"editor.defaultFormatter": "tamasfe.even-better-toml"
-				},
-				"go.toolsManagement.autoUpdate": true,
-				"go.useLanguageServer": true,
-				"go.lintOnSave": "package",
-				"go.lintTool": "golangci-lint",
-				"prettier.semi": false,
-				"prettier.singleQuote": true,
-				"prettier.printWidth": 100,
-				"prettier.trailingComma": "es5",
-				"svelte.enable-ts-plugin": true
-			}
-		}
-	},
-	"postCreateCommand": "apt-get update && apt-get install -y jq && go install github.com/air-verse/air@latest && go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest && wget -O /usr/local/bin/rpm https://github.com/zevlion/rpm/releases/download/latest/rpm && chmod +x /usr/local/bin/rpm && wget -qO- https://github.com/zevlion/zevBot/releases/download/alpha/zevBot-linux-amd64.tar.gz | tar -xz -C /usr/local/bin/ && chmod +x /usr/local/bin/zevBot && cd frontend && npm install"
+    "name": "WHA-HTTP",
+    "dockerComposeFile": "../docker-compose.yml",
+    "containerEnv": {
+        "RPM_BIN": "/usr/local/bin/rpm",
+        "ZEVBOT_BIN": "/usr/local/bin/zevBot"
+    },
+    "features": {
+        "ghcr.io/devcontainers/features/node:1": {
+            "version": "24"
+        }
+    },
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "golang.go",
+                "svelte.svelte-vscode",
+                "esbenp.prettier-vscode",
+                "tamasfe.even-better-toml",
+                "yy0931.vscode-sqlite3-editor"
+            ],
+            "settings": {
+                "editor.formatOnSave": true,
+                "editor.defaultFormatter": "esbenp.prettier-vscode",
+                "[go]": {
+                    "editor.defaultFormatter": "golang.go",
+                    "editor.codeActionsOnSave": {
+                        "source.organizeImports": "explicit"
+                    }
+                },
+                "[svelte]": {
+                    "editor.defaultFormatter": "svelte.svelte-vscode"
+                },
+                "[toml]": {
+                    "editor.defaultFormatter": "tamasfe.even-better-toml"
+                },
+                "go.toolsManagement.autoUpdate": true,
+                "go.useLanguageServer": true,
+                "go.lintOnSave": "package",
+                "go.lintTool": "golangci-lint",
+                "prettier.semi": false,
+                "prettier.singleQuote": true,
+                "prettier.printWidth": 100,
+                "prettier.trailingComma": "es5",
+                "svelte.enable-ts-plugin": true
+            }
+        }
+    },
+    "postCreateCommand": "apt-get update && apt-get install -y jq && go install github.com/air-verse/air@latest && go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest && wget -O /usr/local/bin/rpm https://github.com/zevlion/rpm/releases/download/latest/rpm && chmod +x /usr/local/bin/rpm && wget -qO- https://github.com/zevlion/zevBot/releases/download/alpha/zevBot-linux-amd64.tar.gz | tar -xz -C /usr/local/bin/ && chmod +x /usr/local/bin/zevBot && cd client && npm install"
 }
