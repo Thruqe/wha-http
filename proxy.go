@@ -23,11 +23,16 @@ type client struct {
 	send      chan []byte
 }
 
+type upstreamState struct {
+	ctx    context.Context
+	cancel context.CancelFunc
+}
+
 var (
 	mu          sync.RWMutex
 	subscribers = map[string]map[*client]struct{}{}
 	upstreams   = map[string]*websocket.Conn{}
-	upstreamCtx = map[string]context.Context{} // FIXED: Storing context.Context instead of CancelFunc
+	upstreamCtx = map[string]upstreamState{}
 	lastEvent   = map[string][]byte{}
 )
 
@@ -43,6 +48,8 @@ var replayEvents = map[string]bool{
 	"pair_qr":   true,
 }
 
+// sendEvent serializes a specific event type and payload into JSON and
+// pushes it onto the client's internal send channel buffer.
 func sendEvent(c *client, typ string, payload map[string]any, id *string) {
 	msg := map[string]any{"type": typ, "payload": payload}
 	if id != nil {
@@ -57,6 +64,8 @@ func sendEvent(c *client, typ string, payload map[string]any, id *string) {
 	}
 }
 
+// broadcastRaw safely copies the given raw byte array to all active
+// web client connections subscribed to the specified account ID.
 func broadcastRaw(accountID string, data []byte) {
 	mu.RLock()
 	subs := subscribers[accountID]
@@ -71,6 +80,8 @@ func broadcastRaw(accountID string, data []byte) {
 	}
 }
 
+// broadcastEvent wraps a structured payload into an event format and
+// transmits it to all registered subscribers under the given account ID.
 func broadcastEvent(accountID, typ string, payload map[string]any) {
 	msg := map[string]any{"type": typ, "payload": payload}
 	b, _ := jsonMarshal(msg)
@@ -78,6 +89,8 @@ func broadcastEvent(accountID, typ string, payload map[string]any) {
 	broadcastRaw(accountID, b)
 }
 
+// runUpstreamConn monitors the established WebSocket pipe from the upstream backend service,
+// processes caching criteria, and ensures proper resource tear down via context cancellation.
 func runUpstreamConn(accountID, phone string, port int, conn *websocket.Conn, ctx context.Context) {
 	defer func() {
 		err := conn.CloseNow()
@@ -87,7 +100,11 @@ func runUpstreamConn(accountID, phone string, port int, conn *websocket.Conn, ct
 		Info("[proxy] upstream disconnected account=%s", accountID)
 		mu.Lock()
 		delete(upstreams, accountID)
-		delete(upstreamCtx, accountID)
+		state, exists := upstreamCtx[accountID]
+		if exists {
+			state.cancel()
+			delete(upstreamCtx, accountID)
+		}
 		mu.Unlock()
 		broadcastEvent(accountID, "upstream_closed", map[string]any{"accountId": accountID})
 		go connectUpstream(accountID, phone, port)
@@ -128,6 +145,8 @@ func runUpstreamConn(accountID, phone string, port int, conn *websocket.Conn, ct
 	}
 }
 
+// dialUpstream retries establishing a connection to the local port hosting
+// the upstream backend, returning the connection instance or a boolean status indicator.
 func dialUpstream(accountID string, port int) (*websocket.Conn, bool) {
 	for attempt := 1; attempt <= maxRetries; attempt++ {
 		mu.RLock()
@@ -160,6 +179,8 @@ func dialUpstream(accountID string, port int) (*websocket.Conn, bool) {
 	return nil, false
 }
 
+// connectUpstream manages the lifecycle orchestration of the upstream link, triggering
+// process restarts via the CLI sub-package if direct retry windows fail to mount.
 func connectUpstream(accountID, phone string, port int) {
 	connCtx, connCancel := context.WithCancel(context.Background())
 
@@ -170,7 +191,7 @@ func connectUpstream(accountID, phone string, port int) {
 	}
 	if conn != nil {
 		mu.Lock()
-		upstreamCtx[accountID] = connCtx // FIXED: Assigning connCtx instead of connCancel
+		upstreamCtx[accountID] = upstreamState{ctx: connCtx, cancel: connCancel}
 		mu.Unlock()
 		go runUpstreamConn(accountID, phone, port, conn, connCtx)
 		return
@@ -197,7 +218,7 @@ func connectUpstream(accountID, phone string, port int) {
 		}
 		if conn != nil {
 			mu.Lock()
-			upstreamCtx[accountID] = connCtx // FIXED: Assigning connCtx instead of connCancel
+			upstreamCtx[accountID] = upstreamState{ctx: connCtx, cancel: connCancel}
 			mu.Unlock()
 			go runUpstreamConn(accountID, phone, port, conn, connCtx)
 			return
@@ -210,6 +231,8 @@ func connectUpstream(accountID, phone string, port int) {
 	closeAllSubscribers(accountID)
 }
 
+// closeAllSubscribers drops all active client WebSocket connections for the assigned
+// account ID and fires their distinct context cancellation routines.
 func closeAllSubscribers(accountID string) {
 	mu.Lock()
 	subs := subscribers[accountID]
@@ -225,6 +248,8 @@ func closeAllSubscribers(accountID string) {
 	}
 }
 
+// Handler intercepts client HTTP connections, validates authorization states,
+// constructs bidirectional multiplexing pumps, and proxies events across lines.
 func Handler(w http.ResponseWriter, r *http.Request) {
 	parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
 	if len(parts) < 2 || parts[0] != "ws" {
@@ -354,7 +379,7 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 
 		mu.RLock()
 		up := upstreams[accountID]
-		upCtx, hasUpCtx := upstreamCtx[accountID]
+		state, hasUpCtx := upstreamCtx[accountID]
 		mu.RUnlock()
 
 		if up == nil || !hasUpCtx {
@@ -370,10 +395,11 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		Trace("[proxy] forwarding control message type=%s account=%s", ctrl["type"], accountID)
-		if err := wsjson.Write(upCtx, up, ctrl); err != nil {
+		if err := wsjson.Write(state.ctx, up, ctrl); err != nil {
 			Warn("[proxy] failed to forward control message account=%s err=%v", accountID, err)
 		}
 	}
 }
 
+// jsonMarshal converts a data structure to JSON bytes using standard rules.
 func jsonMarshal(v any) ([]byte, error) { return json.Marshal(v) }
