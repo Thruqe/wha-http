@@ -1,0 +1,18 @@
+{
+    "name": "WHA-HTTP",
+    "image": "oven/bun:latest",
+    "containerEnv": {
+        "rpm": "/usr/local/bin/rpm",
+        "zevBot": "/usr/local/bin/zevBot"
+    },
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "Oven.bun-vscode",
+                "esbenp.prettier-vscode",
+                "yy0931.vscode-sqlite3-editor"
+            ]
+        }
+    },
+    "postCreateCommand": "bun install && apt-get update && apt-get install -y wget curl jq && wget -O /usr/local/bin/rpm https://github.com/zevlion/rpm/releases/download/latest/rpm && chmod +x /usr/local/bin/rpm && wget -qO- https://github.com/zevlion/zevBot/releases/download/alpha/zevBot-linux-amd64.tar.gz | tar -xz -C /usr/local/bin/ && chmod +x /usr/local/bin/zevBot"
+}

@@ -1,0 +1,24 @@
+{
+	"name": "wha-http",
+	"module": "index.ts",
+	"type": "module",
+	"private": false,
+	"devDependencies": {
+		"@types/bun": "latest",
+		"@types/ws": "^8.18.1",
+		"drizzle-kit": "^0.31.10"
+	},
+	"peerDependencies": {
+		"typescript": "^5"
+	},
+	"scripts": {
+		"start": "bun run ./src/index.ts",
+		"migrate": "bunx drizzle-kit generate && bun src/db/migrate.ts",
+		"example": "bun ./example/example.ts"
+	},
+	"dependencies": {
+		"drizzle-orm": "^0.45.2",
+		"jose": "^6.2.3",
+		"ws": "^8.21.0"
+	}
+}
