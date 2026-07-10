@@ -1,0 +1,16 @@
+{
+  "name": "wha-http",
+  "version": "1.0.0",
+  "description": "",
+  "main": "example.js",
+  "scripts": {
+    "example": "node example.js"
+  },
+  "keywords": [],
+  "author": "danielpeter0039@gmail.com",
+  "license": "MIT",
+  "type": "module",
+  "dependencies": {
+    "ws": "^8.21.0"
+  }
+}
