@@ -4,13 +4,26 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 )
 
 var (
 	zevBotBin  = envOr("ZEVBOT_BIN", "zevBot")
-	authDir    = envOr("ZEVBOT_AUTH_DIR", "/workspaces/wha-http/auth")
 	scriptsDir = envOr("ZEVBOT_SCRIPTS_DIR", "/tmp/wha-http-scripts")
+
+	// Dynamically resolve authDir fallback using current working directory
+	authDir = func() string {
+		if v := os.Getenv("ZEVBOT_AUTH_DIR"); v != "" {
+			return v
+		}
+		cwd, err := os.Getwd()
+		if err != nil {
+			// Fail-safe to a local relative directory if os.Getwd fails
+			return "./auth"
+		}
+		return filepath.Join(cwd, "auth")
+	}()
 )
 
 func envOr(key, def string) string {
@@ -75,7 +88,7 @@ func ZevBotStartWithPairCode(phone string, port int, pairPhone string, force boo
 		"--session", phone,
 		"--port", fmt.Sprintf("%d", port),
 		"--auth-dir", authDir,
-		"--pair", pairPhone,
+		"--pair",
 	})
 	if err != nil {
 		return err
