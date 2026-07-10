@@ -85,7 +85,6 @@ Every event emitted by a connected WhatsApp account is forwarded to registered w
 
 If a webhook secret is configured, each request includes an `X-WHA-Signature` header — an HMAC-SHA256 hex digest of the request body signed with your secret.
 
-
 ## Environment Variables
 
 | Variable             | Default                     | Description                              |

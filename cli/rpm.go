@@ -73,7 +73,9 @@ func parseTable(output string) []RpmProcess {
 		list = append(list, RpmProcess{
 			ID: clean[0], Name: clean[1], Mode: clean[2],
 			PID: clean[3], CPU: clean[4], Mem: clean[5],
-			Uptime: clean[6], Status: clean[7], Watch: clean[8], Restarts: clean[9],
+			Uptime: clean[6],
+			Status: strings.TrimPrefix(strings.TrimSpace(clean[7]), "● "),
+			Watch:  clean[8], Restarts: clean[9],
 		})
 	}
 	return list

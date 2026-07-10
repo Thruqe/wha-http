@@ -1,7 +1,6 @@
 {
     "name": "WHA-HTTP",
     "image": "golang:latest",
-    "appPort": [4321, 4322],
     "containerEnv": {
         "RPM_BIN": "/usr/local/bin/rpm",
         "ZEVBOT_BIN": "/usr/local/bin/zevBot"
@@ -11,7 +10,7 @@
             "version": "latest"
         },
         "ghcr.io/devcontainers/features/node:1": {
-            "version": "lts"
+            "version": "24"
         }
     },
     "customizations": {
@@ -19,9 +18,39 @@
             "extensions": [
                 "golang.go",
                 "esbenp.prettier-vscode",
-                "yy0931.vscode-sqlite3-editor"
-            ]
+                "yy0931.vscode-sqlite3-editor",
+                "tamasfe.even-better-toml",
+                "svelte.svelte-vscode"
+            ],
+            "settings": {
+                "editor.formatOnSave": true,
+                "editor.defaultFormatter": "esbenp.prettier-vscode",
+                "[go]": {
+                    "editor.defaultFormatter": "golang.go",
+                    "editor.formatOnSave": true,
+                    "editor.codeActionsOnSave": {
+                        "source.organizeImports": "explicit"
+                    }
+                },
+                "[svelte]": {
+                    "editor.defaultFormatter": "svelte.svelte-vscode"
+                },
+                "[toml]": {
+                    "editor.defaultFormatter": "tamasfe.even-better-toml"
+                },
+                "[json]": {
+                    "editor.defaultFormatter": "esbenp.prettier-vscode"
+                },
+                "[jsonc]": {
+                    "editor.defaultFormatter": "esbenp.prettier-vscode"
+                },
+                "prettier.semi": false,
+                "prettier.singleQuote": true,
+                "prettier.printWidth": 100,
+                "prettier.trailingComma": "es5",
+                "svelte.enable-ts-plugin": true
+            }
         }
     },
-    "postCreateCommand": "apt-get update && apt-get install -y wget curl jq tree && wget -O /usr/local/bin/rpm https://github.com/zevlion/rpm/releases/download/latest/rpm && chmod +x /usr/local/bin/rpm && wget -qO- https://github.com/zevlion/zevBot/releases/download/alpha/zevBot-linux-amd64.tar.gz | tar -xz -C /usr/local/bin/ && chmod +x /usr/local/bin/zevBot"
+    "postCreateCommand": "apt-get update && apt-get install -y wget curl jq tree && go install github.com/air-verse/air@latest && wget -O /usr/local/bin/rpm https://github.com/zevlion/rpm/releases/download/latest/rpm && chmod +x /usr/local/bin/rpm && wget -qO- https://github.com/zevlion/zevBot/releases/download/alpha/zevBot-linux-amd64.tar.gz | tar -xz -C /usr/local/bin/ && chmod +x /usr/local/bin/zevBot && cd frontend && npm install"
 }
