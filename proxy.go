@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -8,16 +9,16 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gorilla/websocket"
+	"github.com/coder/websocket"
+	"github.com/coder/websocket/wsjson"
+	"github.com/zevlion/wha-http/cli"
 	"github.com/zevlion/wha-http/store"
 )
 
-var upgrader = websocket.Upgrader{
-	CheckOrigin: func(r *http.Request) bool { return true },
-}
-
 type client struct {
 	conn      *websocket.Conn
+	ctx       context.Context
+	cancel    context.CancelFunc
 	accountID string
 	send      chan []byte
 }
@@ -26,12 +27,15 @@ var (
 	mu          sync.RWMutex
 	subscribers = map[string]map[*client]struct{}{}
 	upstreams   = map[string]*websocket.Conn{}
+	upstreamCtx = map[string]context.CancelFunc{}
 	lastEvent   = map[string][]byte{}
 )
 
 const (
-	retryDelay = 500 * time.Millisecond
-	maxRetries = 20
+	retryDelay   = 500 * time.Millisecond
+	maxRetries   = 20
+	restartDelay = 2 * time.Second
+	maxRestarts  = 3
 )
 
 var replayEvents = map[string]bool{
@@ -46,7 +50,11 @@ func sendEvent(c *client, typ string, payload map[string]any, id *string) {
 	}
 	b, _ := jsonMarshal(msg)
 	Trace("[proxy] sendEvent type=%s account=%s", typ, c.accountID)
-	c.send <- b
+	select {
+	case c.send <- b:
+	default:
+		Warn("[proxy] sendEvent dropped account=%s type=%s", c.accountID, typ)
+	}
 }
 
 func broadcastRaw(accountID string, data []byte) {
@@ -70,81 +78,134 @@ func broadcastEvent(accountID, typ string, payload map[string]any) {
 	broadcastRaw(accountID, b)
 }
 
-func connectUpstream(accountID string, port int) {
+func runUpstreamConn(accountID, phone string, port int, conn *websocket.Conn, ctx context.Context) {
+	defer func() {
+		err := conn.CloseNow()
+		if err != nil {
+			return
+		}
+		Info("[proxy] upstream disconnected account=%s", accountID)
+		mu.Lock()
+		delete(upstreams, accountID)
+		delete(upstreamCtx, accountID)
+		mu.Unlock()
+		broadcastEvent(accountID, "upstream_closed", map[string]any{"accountId": accountID})
+		go connectUpstream(accountID, phone, port)
+	}()
+
+	for {
+		var raw json.RawMessage
+		if err := wsjson.Read(ctx, conn, &raw); err != nil {
+			Trace("[proxy] upstream read error account=%s err=%v", accountID, err)
+			break
+		}
+
+		msg := []byte(raw)
+		Trace("[proxy] upstream message account=%s raw=%s", accountID, string(msg))
+
+		var evt map[string]any
+		if json.Unmarshal(msg, &evt) == nil {
+			if typ, ok := evt["type"].(string); ok {
+				Trace("[proxy] upstream event type=%s account=%s", typ, accountID)
+				if replayEvents[typ] {
+					mu.Lock()
+					lastEvent[accountID] = msg
+					mu.Unlock()
+					Info("[proxy] cached replay event type=%s account=%s payload=%s", typ, accountID, string(msg))
+				}
+				if typ == "pair_success" {
+					mu.Lock()
+					delete(lastEvent, accountID)
+					mu.Unlock()
+					Info("[proxy] cleared replay cache account=%s (pair_success)", accountID)
+				}
+			}
+		} else {
+			Warn("[proxy] failed to parse upstream message account=%s raw=%s", accountID, string(msg))
+		}
+		go ProcessEvent(accountID, string(msg))
+		broadcastRaw(accountID, msg)
+	}
+}
+
+func dialUpstream(accountID string, port int) (*websocket.Conn, bool) {
 	for attempt := 1; attempt <= maxRetries; attempt++ {
 		mu.RLock()
 		existing, ok := upstreams[accountID]
 		mu.RUnlock()
 		if ok && existing != nil {
 			Trace("[proxy] upstream already connected for account %s, skipping", accountID)
-			return
+			return nil, true
 		}
 
 		Trace("[proxy] upstream attempt %d/%d for account %s port %d", attempt, maxRetries, accountID, port)
-
-		conn, _, err := websocket.DefaultDialer.Dial(
-			fmt.Sprintf("ws://localhost:%d/ws", port), nil,
-		)
+		dialCtx, dialCancel := context.WithTimeout(context.Background(), 3*time.Second)
+		conn, _, err := websocket.Dial(dialCtx, fmt.Sprintf("ws://localhost:%d/ws", port), nil)
+		dialCancel()
 		if err != nil {
 			Trace("[proxy] upstream dial failed attempt=%d account=%s err=%v", attempt, accountID, err)
 			time.Sleep(retryDelay)
 			continue
 		}
+		conn.SetReadLimit(-1)
 
 		mu.Lock()
 		upstreams[accountID] = conn
 		mu.Unlock()
 
 		Info("[proxy] upstream connected account=%s port=%d", accountID, port)
+		go ProcessEvent(accountID, `{"type":"connected","payload":{}}`)
+		return conn, false
+	}
+	return nil, false
+}
 
-		go func() {
-			defer func() {
-				Info("[proxy] upstream disconnected account=%s", accountID)
-				mu.Lock()
-				delete(upstreams, accountID)
-				mu.Unlock()
-				broadcastEvent(accountID, "upstream_closed", map[string]any{"accountId": accountID})
-				closeAllSubscribers(accountID)
-			}()
-			for {
-				_, msg, err := conn.ReadMessage()
-				if err != nil {
-					Trace("[proxy] upstream read error account=%s err=%v", accountID, err)
-					break
-				}
+func connectUpstream(accountID, phone string, port int) {
+	connCtx, connCancel := context.WithCancel(context.Background())
 
-				Trace("[proxy] upstream message account=%s raw=%s", accountID, string(msg))
-
-				// cache replayable events
-				var evt map[string]any
-				if json.Unmarshal(msg, &evt) == nil {
-					if typ, ok := evt["type"].(string); ok {
-						Trace("[proxy] upstream event type=%s account=%s", typ, accountID)
-						if replayEvents[typ] {
-							mu.Lock()
-							lastEvent[accountID] = msg
-							mu.Unlock()
-							Info("[proxy] cached replay event type=%s account=%s payload=%s", typ, accountID, string(msg))
-						}
-						if typ == "pair_success" {
-							mu.Lock()
-							delete(lastEvent, accountID)
-							mu.Unlock()
-							Info("[proxy] cleared replay cache account=%s (pair_success)", accountID)
-						}
-					}
-				} else {
-					Warn("[proxy] failed to parse upstream message account=%s raw=%s", accountID, string(msg))
-				}
-
-				go ProcessEvent(accountID, string(msg))
-				broadcastRaw(accountID, msg)
-			}
-		}()
+	conn, alreadyConnected := dialUpstream(accountID, port)
+	if alreadyConnected {
+		connCancel()
 		return
 	}
+	if conn != nil {
+		mu.Lock()
+		upstreamCtx[accountID] = connCancel
+		mu.Unlock()
+		go runUpstreamConn(accountID, phone, port, conn, connCtx)
+		return
+	}
+	connCancel()
 
-	Error("[proxy] gave up connecting upstream after %d attempts account=%s port=%d", maxRetries, accountID, port)
+	for restartAttempt := 1; restartAttempt <= maxRestarts; restartAttempt++ {
+		Warn("[proxy] upstream did not come up, restarting process attempt=%d/%d account=%s phone=%s",
+			restartAttempt, maxRestarts, accountID, phone)
+
+		if err := cli.ZevBotRestart(phone); err != nil {
+			Error("[proxy] restart failed attempt=%d account=%s err=%v", restartAttempt, accountID, err)
+			continue
+		}
+
+		Info("[proxy] process restarted, waiting before retry account=%s", accountID)
+		time.Sleep(restartDelay)
+
+		connCtx, connCancel = context.WithCancel(context.Background())
+		conn, alreadyConnected = dialUpstream(accountID, port)
+		if alreadyConnected {
+			connCancel()
+			return
+		}
+		if conn != nil {
+			mu.Lock()
+			upstreamCtx[accountID] = connCancel
+			mu.Unlock()
+			go runUpstreamConn(accountID, phone, port, conn, connCtx)
+			return
+		}
+		connCancel()
+	}
+
+	Error("[proxy] gave up after %d restart attempts account=%s port=%d", maxRestarts, accountID, port)
 	broadcastEvent(accountID, "error", map[string]any{"message": "zevBot failed to start"})
 	closeAllSubscribers(accountID)
 }
@@ -156,7 +217,11 @@ func closeAllSubscribers(accountID string) {
 	mu.Unlock()
 	Trace("[proxy] closing %d subscriber(s) for account %s", len(subs), accountID)
 	for c := range subs {
-		c.conn.Close()
+		c.cancel()
+		err := c.conn.CloseNow()
+		if err != nil {
+			return
+		}
 	}
 }
 
@@ -190,13 +255,23 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	conn, err := upgrader.Upgrade(w, r, nil)
+	conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{
+		InsecureSkipVerify: true,
+	})
 	if err != nil {
 		Error("[proxy] upgrade failed account=%s err=%v", accountID, err)
 		return
 	}
+	conn.SetReadLimit(-1)
 
-	c := &client{conn: conn, accountID: accountID, send: make(chan []byte, 64)}
+	ctx, cancel := context.WithCancel(r.Context())
+	c := &client{
+		conn:      conn,
+		ctx:       ctx,
+		cancel:    cancel,
+		accountID: accountID,
+		send:      make(chan []byte, 64),
+	}
 
 	mu.Lock()
 	if subscribers[accountID] == nil {
@@ -208,10 +283,8 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 
 	Info("[proxy] client connected account=%s total_subscribers=%d", accountID, subCount)
 
-	// send connected event
 	sendEvent(c, "connected", map[string]any{"accountId": accountID}, nil)
 
-	// replay last pair event if available
 	mu.RLock()
 	cached, hasCached := lastEvent[accountID]
 	mu.RUnlock()
@@ -227,35 +300,43 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 		Trace("[proxy] no cached event to replay for account=%s", accountID)
 	}
 
-	// ensure upstream is connected
 	Trace("[proxy] ensuring upstream for account=%s port=%d", accountID, account.Port)
-	go connectUpstream(accountID, account.Port)
+	go connectUpstream(accountID, account.Phone, account.Port)
 
 	// write pump
 	go func() {
-		defer conn.Close()
-		for msg := range c.send {
-			Trace("[proxy] write pump sending %d bytes to client account=%s", len(msg), accountID)
-			if err := conn.WriteMessage(websocket.TextMessage, msg); err != nil {
-				Trace("[proxy] write pump error account=%s err=%v", accountID, err)
-				break
+		defer func() {
+			cancel()
+			err := conn.CloseNow()
+			if err != nil {
+				return
+			}
+		}()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case msg, ok := <-c.send:
+				if !ok {
+					return
+				}
+				Trace("[proxy] write pump sending %d bytes to client account=%s", len(msg), accountID)
+				if err := conn.Write(ctx, websocket.MessageText, msg); err != nil {
+					Trace("[proxy] write pump error account=%s err=%v", accountID, err)
+					return
+				}
 			}
 		}
 	}()
 
-	// read pump
+	// read pump / cleanup
 	defer func() {
+		cancel()
 		mu.Lock()
 		delete(subscribers[accountID], c)
 		remaining := len(subscribers[accountID])
 		if remaining == 0 {
 			delete(subscribers, accountID)
-			up := upstreams[accountID]
-			if up != nil {
-				Trace("[proxy] closing upstream — no subscribers left account=%s", accountID)
-				up.Close()
-				delete(upstreams, accountID)
-			}
 		}
 		mu.Unlock()
 		close(c.send)
@@ -263,30 +344,25 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	for {
-		_, msg, err := conn.ReadMessage()
-		if err != nil {
+		var ctrl map[string]any
+		if err := wsjson.Read(ctx, conn, &ctrl); err != nil {
 			Trace("[proxy] read error account=%s err=%v", accountID, err)
 			break
 		}
 
-		Trace("[proxy] received control message account=%s raw=%s", accountID, string(msg))
+		Trace("[proxy] received control message account=%s", accountID)
 
 		mu.RLock()
 		up := upstreams[accountID]
+		upCtx, hasUpCtx := upstreamCtx[accountID]
 		mu.RUnlock()
 
-		if up == nil {
+		if up == nil || !hasUpCtx {
 			Warn("[proxy] no upstream for control message account=%s", accountID)
 			sendEvent(c, "error", map[string]any{"message": "upstream not connected"}, nil)
 			continue
 		}
 
-		var ctrl map[string]any
-		if err := jsonUnmarshal(msg, &ctrl); err != nil {
-			Warn("[proxy] invalid control message account=%s err=%v", accountID, err)
-			sendEvent(c, "error", map[string]any{"message": "invalid message format"}, nil)
-			continue
-		}
 		if _, ok := ctrl["type"].(string); !ok {
 			Warn("[proxy] control message missing type field account=%s", accountID)
 			sendEvent(c, "error", map[string]any{"message": "invalid message format"}, nil)
@@ -294,11 +370,10 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		Trace("[proxy] forwarding control message type=%s account=%s", ctrl["type"], accountID)
-		if err := up.WriteMessage(websocket.TextMessage, msg); err != nil {
+		if err := wsjson.Write(upCtx, up, ctrl); err != nil {
 			Warn("[proxy] failed to forward control message account=%s err=%v", accountID, err)
 		}
 	}
 }
 
-func jsonMarshal(v any) ([]byte, error)   { return json.Marshal(v) }
-func jsonUnmarshal(b []byte, v any) error { return json.Unmarshal(b, v) }
+func jsonMarshal(v any) ([]byte, error) { return json.Marshal(v) }

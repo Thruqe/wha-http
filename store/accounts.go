@@ -23,6 +23,19 @@ type Hook struct {
 	CreatedAt   int64   `json:"createdAt"`
 }
 
+func GetAccountByID(accountID string) (*WaAccount, error) {
+	row := DB.QueryRow(
+		`SELECT id, user_id, phone, port, status, created_at FROM wa_accounts WHERE id = ?`,
+		accountID,
+	)
+	a := &WaAccount{}
+	err := row.Scan(&a.ID, &a.UserID, &a.Phone, &a.Port, &a.Status, &a.CreatedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	return a, err
+}
+
 func GetAccountByIDAndUser(accountID, userID string) (*WaAccount, error) {
 	row := DB.QueryRow(
 		`SELECT id, user_id, phone, port, status, created_at FROM wa_accounts WHERE id = ? AND user_id = ?`,
@@ -30,7 +43,7 @@ func GetAccountByIDAndUser(accountID, userID string) (*WaAccount, error) {
 	)
 	a := &WaAccount{}
 	err := row.Scan(&a.ID, &a.UserID, &a.Phone, &a.Port, &a.Status, &a.CreatedAt)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
 	return a, err
@@ -94,6 +107,25 @@ func AllocatePort() (int, error) {
 		}
 	}
 	return 0, errors.New("no available ports in range")
+}
+
+func GetAllActiveAccounts() ([]WaAccount, error) {
+	rows, err := DB.Query(
+		`SELECT id, user_id, phone, port, status, created_at FROM wa_accounts WHERE status != 'disconnected'`,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var list []WaAccount
+	for rows.Next() {
+		var a WaAccount
+		if err := rows.Scan(&a.ID, &a.UserID, &a.Phone, &a.Port, &a.Status, &a.CreatedAt); err != nil {
+			return nil, err
+		}
+		list = append(list, a)
+	}
+	return list, nil
 }
 
 // Hooks

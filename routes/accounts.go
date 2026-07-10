@@ -23,6 +23,7 @@ func ListAccounts(w http.ResponseWriter, r *http.Request) {
 	if accounts == nil {
 		accounts = []store.WaAccount{}
 	}
+
 	jsonOK(w, accounts, 200)
 }
 
@@ -160,9 +161,14 @@ func RestartAccount(w http.ResponseWriter, r *http.Request, accountID string) {
 		jsonErr(w, err.Error(), 500)
 		return
 	}
-	if err := store.UpdateAccountStatus(accountID, "pending_qr"); err != nil {
-		jsonErr(w, err.Error(), 500)
-		return
+	// Preserve existing status — the process is restarting with existing auth,
+	// so it will reconnect and emit "connected" which engine.go will handle.
+	// Only reset to pending if it was already in a pending state.
+	if account.Status != "connected" {
+		if err := store.UpdateAccountStatus(accountID, account.Status); err != nil {
+			jsonErr(w, err.Error(), 500)
+			return
+		}
 	}
 	jsonOK(w, map[string]any{"ok": true}, 200)
 }

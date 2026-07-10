@@ -3,9 +3,12 @@ package main
 import (
 	"net/http"
 	"os"
+	"os/signal"
 	"regexp"
 	"strings"
+	"syscall"
 
+	"github.com/zevlion/wha-http/cli"
 	"github.com/zevlion/wha-http/routes"
 	"github.com/zevlion/wha-http/store"
 )
@@ -30,28 +33,70 @@ func withCORS(h http.Handler) http.Handler {
 	})
 }
 
+func startAll() {
+	accounts, err := store.GetAllActiveAccounts()
+	if err != nil {
+		Error("[startup] failed to load active accounts: %v", err)
+		return
+	}
+	Info("[startup] starting %d active account(s)", len(accounts))
+	for _, a := range accounts {
+		a := a
+		if err := cli.ZevBotStart(a.Phone, a.Port, false, false); err != nil {
+			Error("[startup] failed to start zevBot for account=%s phone=%s err=%v", a.ID, a.Phone, err)
+			continue
+		}
+		go connectUpstream(a.ID, a.Phone, a.Port)
+	}
+}
+
+func stopAll() {
+	accounts, err := store.GetAllActiveAccounts()
+	if err != nil {
+		Error("[shutdown] failed to load active accounts: %v", err)
+		return
+	}
+	Info("[shutdown] stopping %d active account(s)", len(accounts))
+	for _, a := range accounts {
+		if err := cli.ZevBotStop(a.Phone); err != nil {
+			Error("[shutdown] failed to stop zevBot for account=%s phone=%s err=%v", a.ID, a.Phone, err)
+		} else {
+			Info("[shutdown] stopped zevBot phone=%s", a.Phone)
+		}
+	}
+}
+
 func main() {
 	if err := store.Init(); err != nil {
 		Error("failed to init db: %v", err)
 		os.Exit(1)
 	}
 
+	go startAll()
+
+	// Graceful shutdown — stop all zevBot processes on SIGINT/SIGTERM
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		<-quit
+		Info("[shutdown] signal received, stopping all zevBot instances")
+		stopAll()
+		os.Exit(0)
+	}()
+
 	mux := http.NewServeMux()
 
-	// SPA — serve frontend/build, fall back to index.html for client-side routing
 	spaDir := "client/build"
 	spaFS := http.FileServer(http.Dir(spaDir))
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
 		method := r.Method
 
-		// WebSocket
 		if strings.HasPrefix(path, "/ws/") {
 			Handler(w, r)
 			return
 		}
 
-		// API routes
 		switch {
 		case path == "/auth/register" && method == "POST":
 			routes.Register(w, r)
@@ -112,7 +157,6 @@ func main() {
 			return
 		}
 
-		// Fall through to SPA — serve static file or index.html
 		filePath := spaDir + path
 		if _, err := os.Stat(filePath); os.IsNotExist(err) {
 			http.ServeFile(w, r, spaDir+"/index.html")
