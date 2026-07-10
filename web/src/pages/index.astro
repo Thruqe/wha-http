@@ -1,5 +1,5 @@
 ---
-export const prerender = false
+export const prerender = false;
 ---
 
 <html lang="en">
@@ -9,412 +9,74 @@ export const prerender = false
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="generator" content={Astro.generator} />
         <title>zevBot Monitor</title>
-        <style>
-            *,
-            *::before,
-            *::after {
-                box-sizing: border-box;
-                margin: 0;
-                padding: 0;
-            }
-
-            :root {
-                --gray-50: #fafafa;
-                --gray-100: #f4f4f5;
-                --gray-200: #e4e4e7;
-                --gray-300: #d4d4d8;
-                --gray-400: #a1a1aa;
-                --gray-500: #71717a;
-                --gray-700: #3f3f46;
-                --gray-900: #18181b;
-                
-                --blue-500: #0066s;
-                --blue-600: #0051af;
-                
-                --geist-background: #ffffff;
-                --geist-foreground: #000000;
-                --radius-large: 12px;
-                --radius-medium: 8px;
-                --radius-small: 6px;
-                
-                --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-                --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
-                
-                --success: #0070f3;
-                --warning: #f5a623;
-                --error: #ee0000;
-            }
-
-            body {
-                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-                font-size: 14px;
-                color: var(--gray-900);
-                background-color: var(--geist-background);
-                padding: 2rem 1rem;
-                max-width: 1200px;
-                margin: 0 auto;
-                line-height: 1.6;
-                -webkit-font-smoothing: antialiased;
-                -moz-osx-font-smoothing: grayscale;
-            }
-
-            .dashboard-container {
-                display: grid;
-                grid-template-columns: 1fr;
-                gap: 2rem;
-                margin-top: 2rem;
-            }
-
-            header {
-                border-bottom: 1px solid var(--gray-200);
-                padding-bottom: 1.5rem;
-            }
-
-            h1 {
-                font-size: 32px;
-                font-weight: 700;
-                letter-spacing: -0.05em;
-                color: var(--geist-foreground);
-                margin-bottom: 0.5rem;
-            }
-
-            .sub {
-                font-size: 16px;
-                color: var(--gray-500);
-                max-width: 720px;
-                letter-spacing: -0.01em;
-            }
-
-            .card {
-                background: var(--geist-background);
-                border: 1px solid var(--gray-200);
-                border-radius: var(--radius-large);
-                box-shadow: var(--shadow-sm);
-                padding: 1.5rem;
-                transition: box-shadow 0.2s ease, border-color 0.2s ease;
-            }
-
-            .card:hover {
-                box-shadow: var(--shadow-md);
-                border-color: var(--gray-300);
-            }
-
-            .card-title {
-                font-size: 12px;
-                font-weight: 500;
-                text-transform: uppercase;
-                letter-spacing: 0.05em;
-                color: var(--gray-500);
-                margin-bottom: 1rem;
-            }
-
-            .connect-row {
-                display: flex;
-                gap: 0.75rem;
-                flex-wrap: wrap;
-            }
-
-            .input-container {
-                flex: 1;
-                min-width: 260px;
-            }
-
-            input[type="text"] {
-                width: 100%;
-                height: 40px;
-                padding: 0 12px;
-                background-color: var(--geist-background);
-                border: 1px solid var(--gray-200);
-                border-radius: var(--radius-medium);
-                font-size: 14px;
-                color: var(--geist-foreground);
-                font-family: inherit;
-                transition: border-color 0.15s ease, box-shadow 0.15s ease;
-            }
-
-            input[type="text"]:focus {
-                outline: none;
-                border-color: var(--gray-900);
-                box-shadow: 0 0 0 1px var(--gray-900);
-            }
-
-            input[type="text"]::placeholder {
-                color: var(--gray-400);
-            }
-
-            button {
-                display: inline-flex;
-                align-items: center;
-                justify-content: center;
-                gap: 0.5rem;
-                height: 40px;
-                padding: 0 1rem;
-                font-size: 14px;
-                font-weight: 500;
-                border-radius: var(--radius-medium);
-                cursor: pointer;
-                transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
-                white-space: nowrap;
-                background-color: var(--geist-background);
-                border: 1px solid var(--gray-200);
-                color: var(--gray-500);
-            }
-
-            button:hover {
-                background-color: var(--gray-50);
-                border-color: var(--gray-900);
-                color: var(--gray-900);
-            }
-
-            button:focus-visible {
-                outline: none;
-                box-shadow: 0 0 0 2px var(--gray-300);
-            }
-
-            button:disabled {
-                opacity: 0.5;
-                cursor: not-allowed;
-                background-color: var(--gray-100);
-                border-color: var(--gray-200);
-                color: var(--gray-400);
-            }
-
-            button#connectBtn {
-                background-color: var(--gray-900);
-                border-color: var(--gray-900);
-                color: var(--geist-background);
-            }
-
-            button#connectBtn:hover {
-                background-color: var(--geist-background);
-                color: var(--gray-900);
-            }
-
-            button#disconnectBtn {
-                border-color: var(--gray-200);
-                color: var(--error);
-            }
-
-            button#disconnectBtn:hover {
-                background-color: #fff5f5;
-                border-color: var(--error);
-            }
-
-            .status-section {
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                padding: 0.5rem 0.25rem;
-                border-bottom: 1px solid var(--gray-100);
-                margin-bottom: 1rem;
-            }
-
-            .status-container {
-                display: flex;
-                align-items: center;
-                gap: 0.5rem;
-            }
-
-            .dot {
-                width: 6px;
-                height: 6px;
-                border-radius: 50%;
-                background-color: var(--gray-300);
-                transition: background-color 0.2s ease, box-shadow 0.2s ease;
-            }
-
-            .dot.connected {
-                background-color: var(--success);
-                box-shadow: 0 0 0 3px rgba(0, 112, 243, 0.15);
-            }
-
-            .dot.connecting {
-                background-color: var(--warning);
-                box-shadow: 0 0 0 3px rgba(245, 166, 35, 0.15);
-                animation: pulse 1.5s infinite ease-in-out;
-            }
-
-            .dot.error {
-                background-color: var(--error);
-                box-shadow: 0 0 0 3px rgba(238, 0, 0, 0.15);
-            }
-
-            @keyframes pulse {
-                0%, 100% { opacity: 1; }
-                50% { opacity: 0.5; }
-            }
-
-            #statusText {
-                font-size: 13px;
-                font-weight: 500;
-                color: var(--gray-700);
-            }
-
-            .count-badge {
-                font-size: 12px;
-                font-weight: 500;
-                background-color: var(--gray-100);
-                color: var(--gray-700);
-                padding: 2px 8px;
-                border-radius: var(--radius-small);
-                border: 1px solid var(--gray-200);
-            }
-
-            .log-wrap {
-                border: 1px solid var(--gray-200);
-                border-radius: var(--radius-large);
-                overflow: hidden;
-                box-shadow: var(--shadow-sm);
-                background-color: var(--geist-background);
-            }
-
-            .log-toolbar {
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                padding: 0.75rem 1rem;
-                background-color: var(--gray-50);
-                border-bottom: 1px solid var(--gray-200);
-            }
-
-            .toolbar-actions {
-                display: flex;
-                gap: 0.5rem;
-            }
-
-            .log-toolbar button {
-                height: 28px;
-                padding: 0 0.75rem;
-                font-size: 12px;
-                border-radius: var(--radius-small);
-            }
-
-            .log-toolbar button.active {
-                background-color: rgba(0, 112, 243, 0.06);
-                border-color: rgba(0, 112, 243, 0.3);
-                color: var(--success);
-            }
-
-            .log {
-                padding: 1rem;
-                min-height: 360px;
-                max-height: 600px;
-                overflow-y: auto;
-                background-color: var(--geist-background);
-                font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-                font-size: 13px;
-                line-height: 1.6;
-            }
-
-            .log-entry {
-                display: grid;
-                grid-template-columns: 75px 90px 1fr;
-                gap: 1rem;
-                padding: 0.25rem 0.5rem;
-                border-radius: var(--radius-small);
-                align-items: start;
-            }
-
-            .log-entry:hover {
-                background-color: var(--gray-50);
-            }
-
-            .ts {
-                color: var(--gray-400);
-                user-select: none;
-            }
-
-            .tag {
-                font-weight: 600;
-                font-size: 11px;
-                text-transform: uppercase;
-                letter-spacing: 0.05em;
-            }
-
-            .tag.info { color: #0070f3; }
-            .tag.warn { color: #f5a623; }
-            .tag.err { color: #ee0000; }
-            .tag.event { color: #0070f3; }
-
-            .msg {
-                color: var(--gray-700);
-                word-break: break-all;
-                white-space: pre-wrap;
-            }
-
-            @media (min-width: 768px) {
-                body {
-                    padding: 4rem 2rem;
-                }
-                .dashboard-container {
-                    grid-template-columns: 320px 1fr;
-                    align-items: start;
-                }
-                .connect-row {
-                    flex-direction: column;
-                    align-items: stretch;
-                }
-                .input-container {
-                    width: 100%;
-                }
-            }
-
-            @media (max-width: 599px) {
-                .log-entry {
-                    grid-template-columns: 1fr;
-                    gap: 0.125rem;
-                    padding: 0.5rem;
-                    border-bottom: 1px solid var(--gray-100);
-                }
-                .log-entry:last-child {
-                    border-bottom: none;
-                }
-                .ts, .tag {
-                    display: inline-block;
-                    margin-right: 0.5rem;
-                }
-                .msg {
-                    margin-top: 0.25rem;
-                }
-            }
-        </style>
     </head>
-    <body>
-        <header>
-            <h1>zevBot Monitor</h1>
-            <p class="sub">
-                Authenticate with a telephone endpoint destination sequence to open a persistent streaming network link layer interface structure.
+    <body
+        class="font-sans text-sm text-zinc-900 bg-white px-4 py-8 max-w-[1200px] mx-auto leading-relaxed antialiased md:px-8 md:py-16"
+    >
+        <header class="border-b border-zinc-200 pb-6">
+            <h1 class="text-4xl font-bold tracking-tighter text-black mb-2">
+                zevBot Monitor
+            </h1>
+            <p class="text-base text-zinc-500 max-w-2xl tracking-tight">
+                Authenticate with a telephone endpoint destination sequence to
+                open a persistent streaming network link layer interface
+                structure.
             </p>
         </header>
 
-        <main class="dashboard-container">
+        <main
+            class="grid grid-cols-1 gap-8 mt-8 md:grid-cols-[320px_1fr] md:items-start"
+        >
             <section class="card">
                 <h2 class="card-title">Authentication Context</h2>
-                <div class="connect-row">
-                    <div class="input-container">
-                        <input type="text" id="phone" placeholder="+1234567890" />
+                <div class="flex flex-wrap gap-3 md:flex-col md:items-stretch">
+                    <div class="flex-1 min-w-[260px] md:w-full">
+                        <input
+                            type="text"
+                            id="phone"
+                            placeholder="+1234567890"
+                            class="input-text"
+                        />
                     </div>
-                    <button id="connectBtn">Connect</button>
-                    <button id="disconnectBtn" disabled>Disconnect</button>
+                    <button id="connectBtn" class="btn-primary">Connect</button>
+                    <button id="disconnectBtn" class="btn-danger" disabled
+                        >Disconnect</button
+                    >
                 </div>
             </section>
 
             <section>
-                <div class="status-section">
-                    <div class="status-container">
+                <div
+                    class="flex items-center justify-between px-1 py-2 border-b border-zinc-100 mb-4"
+                >
+                    <div class="flex items-center gap-2">
                         <div class="dot" id="dot"></div>
-                        <span id="statusText">Disconnected</span>
+                        <span
+                            id="statusText"
+                            class="text-[13px] font-medium text-zinc-700"
+                            >Disconnected</span
+                        >
                     </div>
-                    <span class="count-badge" id="countLabel">0 events</span>
+                    <span
+                        id="countLabel"
+                        class="text-xs font-medium bg-zinc-100 text-zinc-700 px-2 py-0.5 rounded border border-zinc-200"
+                        >0 events</span
+                    >
                 </div>
 
-                <div class="log-wrap">
-                    <div class="log-toolbar">
-                        <span class="card-title" style="margin-bottom: 0;">Execution Log Stream</span>
-                        <div class="toolbar-actions">
+                <div
+                    class="border border-zinc-200 rounded-xl overflow-hidden shadow-sm bg-white"
+                >
+                    <div
+                        class="flex items-center justify-between px-4 py-3 bg-zinc-50 border-b border-zinc-200"
+                    >
+                        <span class="card-title" style="margin-bottom:0"
+                            >Execution Log Stream</span
+                        >
+                        <div class="flex gap-2">
                             <button
                                 id="autoscrollBtn"
-                                class="active"
+                                class="btn h-7 px-3 text-xs rounded"
                                 aria-pressed="true"
                                 title="Toggle autoscroll"
                             >
@@ -427,11 +89,16 @@ export const prerender = false
                                     stroke-width="2"
                                     aria-hidden="true"
                                 >
-                                    <path d="M8 3v7M5 7l3 3 3-3"></path><path d="M3 13h10"></path>
+                                    <path d="M8 3v7M5 7l3 3 3-3"></path><path
+                                        d="M3 13h10"></path>
                                 </svg>
                                 Autoscroll
                             </button>
-                            <button id="clearBtn" title="Clear log">
+                            <button
+                                id="clearBtn"
+                                class="btn h-7 px-3 text-xs rounded"
+                                title="Clear log"
+                            >
                                 <svg
                                     width="12"
                                     height="12"
@@ -441,17 +108,31 @@ export const prerender = false
                                     stroke-width="2"
                                     aria-hidden="true"
                                 >
-                                    <path d="M3 4h10M6 4V3h4v1M5 4l.5 9h5l.5-9"></path>
+                                    <path d="M3 4h10M6 4V3h4v1M5 4l.5 9h5l.5-9"
+                                    ></path>
                                 </svg>
                                 Clear
                             </button>
                         </div>
                     </div>
-                    <div class="log" id="log">
-                        <div class="log-entry">
-                            <span class="ts">--:--:--</span>
-                            <span class="tag info">[info]</span>
-                            <span class="msg">Context pipeline idle. Provide a telephony validation configuration matrix to spin up downstream instances.</span>
+
+                    <div
+                        id="log"
+                        class="p-4 min-h-[360px] max-h-[600px] overflow-y-auto bg-white font-mono text-[13px] leading-relaxed"
+                    >
+                        <div
+                            class="grid grid-cols-[75px_90px_1fr] gap-4 px-2 py-1 rounded hover:bg-zinc-50"
+                        >
+                            <span class="text-zinc-400 select-none"
+                                >--:--:--</span
+                            >
+                            <span class="log-tag text-[#0070f3]">[info]</span>
+                            <span
+                                class="text-zinc-700 break-all whitespace-pre-wrap"
+                                >Context pipeline idle. Provide a telephony
+                                validation configuration matrix to spin up
+                                downstream instances.</span
+                            >
                         </div>
                     </div>
                 </div>
@@ -465,13 +146,93 @@ export const prerender = false
 
             const log = document.getElementById("log") as HTMLDivElement;
             const dot = document.getElementById("dot") as HTMLDivElement;
-            const statusText = document.getElementById("statusText") as HTMLSpanElement;
-            const connectBtn = document.getElementById("connectBtn") as HTMLButtonElement;
-            const disconnectBtn = document.getElementById("disconnectBtn") as HTMLButtonElement;
-            const phoneInput = document.getElementById("phone") as HTMLInputElement;
-            const autoscrollBtn = document.getElementById("autoscrollBtn") as HTMLButtonElement;
-            const clearBtn = document.getElementById("clearBtn") as HTMLButtonElement;
-            const countLabel = document.getElementById("countLabel") as HTMLSpanElement;
+            const statusText = document.getElementById(
+                "statusText",
+            ) as HTMLSpanElement;
+            const connectBtn = document.getElementById(
+                "connectBtn",
+            ) as HTMLButtonElement;
+            const disconnectBtn = document.getElementById(
+                "disconnectBtn",
+            ) as HTMLButtonElement;
+            const phoneInput = document.getElementById(
+                "phone",
+            ) as HTMLInputElement;
+            const autoscrollBtn = document.getElementById(
+                "autoscrollBtn",
+            ) as HTMLButtonElement;
+            const clearBtn = document.getElementById(
+                "clearBtn",
+            ) as HTMLButtonElement;
+            const countLabel = document.getElementById(
+                "countLabel",
+            ) as HTMLSpanElement;
+
+            // ── Types ──────────────────────────────────────────────────────────────
+
+            type ControlType =
+                | "send_message"
+                | "disconnect"
+                | "logout"
+                | "get_status";
+            type EventType =
+                | "pair_qr"
+                | "pair_code"
+                | "pair_success"
+                | "pair_error"
+                | "logged_out"
+                | "disconnected"
+                | "ack"
+                | "connected"
+                | "upstream_closed"
+                | "error";
+
+            interface EventMessage {
+                type: EventType;
+                id?: string;
+                payload: Record<string, unknown>;
+            }
+
+            interface ControlMessage {
+                type: ControlType;
+                id: string;
+                payload: Record<string, unknown>;
+            }
+
+            // ── Pending acks ───────────────────────────────────────────────────────
+
+            const pending = new Map<
+                string,
+                { resolve: () => void; reject: (r: string) => void }
+            >();
+
+            function randomId(): string {
+                return Math.random().toString(36).slice(2, 10);
+            }
+
+            function sendControl(
+                type: ControlType,
+                payload: Record<string, unknown> = {},
+            ): Promise<void> {
+                return new Promise((resolve, reject) => {
+                    if (!ws || ws.readyState !== WebSocket.OPEN) {
+                        reject("Not connected");
+                        return;
+                    }
+                    const id = randomId();
+                    pending.set(id, { resolve, reject });
+                    const msg: ControlMessage = { type, id, payload };
+                    ws.send(JSON.stringify(msg));
+                    setTimeout(() => {
+                        if (pending.has(id)) {
+                            pending.delete(id);
+                            reject(`Timeout: ${id}`);
+                        }
+                    }, 10_000);
+                });
+            }
+
+            // ── UI helpers ─────────────────────────────────────────────────────────
 
             autoscrollBtn.addEventListener("click", () => {
                 autoscroll = !autoscroll;
@@ -481,7 +242,8 @@ export const prerender = false
             });
 
             log.addEventListener("scroll", () => {
-                const atBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 32;
+                const atBottom =
+                    log.scrollHeight - log.scrollTop - log.clientHeight < 32;
                 if (!atBottom && autoscroll) {
                     autoscroll = false;
                     autoscrollBtn.classList.remove("active");
@@ -499,12 +261,25 @@ export const prerender = false
                 return new Date().toTimeString().slice(0, 8);
             }
 
+            const tagColors: Record<string, string> = {
+                info: "text-[#0070f3]",
+                warn: "text-[#f5a623]",
+                err: "text-[#ee0000]",
+                event: "text-[#0070f3]",
+            };
+
             function addLog(level: string, tag: string, msg: string): void {
                 eventCount++;
                 countLabel.textContent = `${eventCount} event${eventCount === 1 ? "" : "s"}`;
+                const color = tagColors[level] ?? "text-zinc-500";
                 const entry = document.createElement("div");
-                entry.className = "log-entry";
-                entry.innerHTML = `<span class="ts">${ts()}</span><span class="tag ${level}">${tag}</span><span class="msg">${escHtml(msg)}</span>`;
+                entry.className =
+                    "grid grid-cols-[75px_90px_1fr] gap-4 px-2 py-1 rounded hover:bg-zinc-50 max-sm:grid-cols-1 max-sm:gap-0.5 max-sm:p-2 max-sm:border-b max-sm:border-zinc-100";
+                entry.innerHTML = `
+          <span class="text-zinc-400 select-none">${ts()}</span>
+          <span class="log-tag ${color}">${escHtml(tag)}</span>
+          <span class="text-zinc-700 break-all whitespace-pre-wrap">${escHtml(msg)}</span>
+        `;
                 log.appendChild(entry);
                 if (autoscroll) log.scrollTop = log.scrollHeight;
             }
@@ -517,20 +292,111 @@ export const prerender = false
             }
 
             function setStatus(state: string, text: string): void {
-                dot.className = "dot " + state;
+                dot.className =
+                    state === "connected"
+                        ? "dot-connected"
+                        : state === "connecting"
+                          ? "dot-connecting"
+                          : state === "error"
+                            ? "dot-error"
+                            : "dot";
                 statusText.textContent = text;
             }
+
+            // ── Event handler ──────────────────────────────────────────────────────
+
+            function handleEvent(msg: EventMessage): void {
+                if (msg.type === "ack" && msg.id) {
+                    const p = pending.get(msg.id);
+                    if (p) {
+                        pending.delete(msg.id);
+                        const { ok, error } = msg.payload as {
+                            ok: boolean;
+                            error?: string;
+                        };
+                        ok ? p.resolve() : p.reject(error ?? "Unknown error");
+                    }
+                    return;
+                }
+
+                switch (msg.type) {
+                    case "connected":
+                        addLog(
+                            "info",
+                            "[ws]",
+                            `Remote agent accepted pipeline for account ${msg.payload.accountId}`,
+                        );
+                        break;
+                    case "pair_qr":
+                        addLog(
+                            "event",
+                            "[pair]",
+                            `QR Code: ${msg.payload.code}`,
+                        );
+                        break;
+                    case "pair_code": {
+                        const { code, expires_in } = msg.payload as {
+                            code: string;
+                            expires_in: number;
+                        };
+                        addLog(
+                            "event",
+                            "[pair]",
+                            `Pair code: ${code} — expires in ${expires_in}s`,
+                        );
+                        break;
+                    }
+                    case "pair_success":
+                        addLog("info", "[pair]", "Paired successfully!");
+                        break;
+                    case "pair_error":
+                        addLog(
+                            "err",
+                            "[pair]",
+                            `Pairing failed: ${msg.payload.reason}`,
+                        );
+                        break;
+                    case "logged_out":
+                        addLog("warn", "[session]", "Session logged out.");
+                        break;
+                    case "disconnected":
+                        addLog("warn", "[session]", "Bot disconnected.");
+                        break;
+                    case "upstream_closed":
+                        addLog(
+                            "warn",
+                            "[ws]",
+                            "Upstream node closed the pipeline.",
+                        );
+                        break;
+                    case "error":
+                        addLog(
+                            "err",
+                            "[error]",
+                            String(msg.payload.message ?? "Unknown error"),
+                        );
+                        break;
+                    default:
+                        addLog(
+                            "event",
+                            "[event]",
+                            JSON.stringify(msg, null, 2),
+                        );
+                }
+            }
+
+            // ── Connect ────────────────────────────────────────────────────────────
 
             connectBtn.addEventListener("click", async () => {
                 const phone = phoneInput.value.trim();
                 if (!phone) {
-                    addLog("err", "[error]", "Context generation prevented due to missing routing reference parameter.");
+                    addLog("err", "[error]", "Phone number is required.");
                     return;
                 }
 
                 connectBtn.disabled = true;
-                setStatus("connecting", "Initializing runtime operational token payload...");
-                addLog("info", "[auth]", "Reaching downstream identification database endpoint cluster...");
+                setStatus("connecting", "Authenticating...");
+                addLog("info", "[auth]", "Reaching setup endpoint...");
 
                 let data: {
                     token: string;
@@ -550,9 +416,12 @@ export const prerender = false
                         addLog(
                             "err",
                             "[error]",
-                            err.error + (err.detail ? " — " + JSON.stringify(err.detail) : ""),
+                            err.error +
+                                (err.detail
+                                    ? " — " + JSON.stringify(err.detail)
+                                    : ""),
                         );
-                        setStatus("error", "Failed configuration instantiation state");
+                        setStatus("error", "Setup failed");
                         connectBtn.disabled = false;
                         return;
                     }
@@ -560,46 +429,61 @@ export const prerender = false
                     addLog(
                         "err",
                         "[error]",
-                        "Operational network setup faulted: " + (e instanceof Error ? e.message : String(e)),
+                        "Setup failed: " +
+                            (e instanceof Error ? e.message : String(e)),
                     );
-                    setStatus("error", "Exception generated during socket binding");
+                    setStatus("error", "Setup failed");
                     connectBtn.disabled = false;
                     return;
                 }
 
                 const { token, user, account } = data;
-                addLog("info", "[auth]", `Authorization confirmed for identity context: ${user.email} (${user.id})`);
-                addLog("info", "[accounts]", `Assigned Routing Domain: ${account.id} — ${account.phone}`);
-                addLog("info", "[ws]", `Binding active pipeline interface socket thread to host cluster node ${account.id}...`);
-                setStatus("connecting", "Handshaking telemetry layer synchronization patterns...");
+                addLog(
+                    "info",
+                    "[auth]",
+                    `Authenticated: ${user.email} (${user.id})`,
+                );
+                addLog(
+                    "info",
+                    "[accounts]",
+                    `Account: ${account.id} — ${account.phone}`,
+                );
+                addLog(
+                    "info",
+                    "[ws]",
+                    `Connecting to account ${account.id}...`,
+                );
+                setStatus("connecting", "Connecting...");
 
                 ws = new WebSocket(
                     `ws://${window.location.hostname}:4322?accountId=${account.id}&token=${token}`,
                 );
 
                 ws.onopen = () => {
-                    addLog("info", "[ws]", "Bi-directional application pipeline stream successfully opened and running.");
-                    setStatus("connected", `Live Streaming Context — ${account.phone}`);
+                    addLog("info", "[ws]", "WebSocket connected.");
+                    setStatus("connected", `Connected — ${account.phone}`);
                     disconnectBtn.disabled = false;
                 };
 
                 ws.onmessage = (e: MessageEvent) => {
-                    addLog("info", "[ws:raw]", String(e.data));
                     try {
-                        const ev = JSON.parse(e.data as string);
-                        if (ev?.type === "connected")
-                            addLog("info", "[ws]", `Remote execution agent cluster accepted processing task for pipeline ${ev.accountId}`);
-                        else if (ev?.type === "error") addLog("err", "[ws]", ev.message);
-                        else if (ev?.type === "upstream_closed")
-                            addLog("warn", "[ws]", "Upstream execution node terminated processing pipeline stream topologically");
-                        else addLog("event", "[event]", JSON.stringify(ev, null, 2));
+                        const msg: EventMessage = JSON.parse(e.data as string);
+                        handleEvent(msg);
                     } catch {
-                        addLog("event", "[event]", "Unstructured payload string segment parsed: " + String(e.data));
+                        addLog(
+                            "event",
+                            "[event]",
+                            "Unparseable message: " + String(e.data),
+                        );
                     }
                 };
 
                 ws.onclose = (e: CloseEvent) => {
-                    addLog("info", "[ws]", `Data stream layer disconnected cleanly: System status parameter sequence ${e.code} ${e.reason}`);
+                    addLog(
+                        "info",
+                        "[ws]",
+                        `Disconnected: ${e.code} ${e.reason}`,
+                    );
                     setStatus("", "Disconnected");
                     connectBtn.disabled = false;
                     disconnectBtn.disabled = true;
@@ -607,8 +491,8 @@ export const prerender = false
                 };
 
                 ws.onerror = () => {
-                    addLog("err", "[ws]", "Internal telemetry layer generated an unhandled execution system fault condition");
-                    setStatus("error", "Transport Layer Exception");
+                    addLog("err", "[ws]", "WebSocket error.");
+                    setStatus("error", "Connection error");
                 };
             });
 
