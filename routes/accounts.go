@@ -116,7 +116,10 @@ func RemoveAccount(w http.ResponseWriter, r *http.Request, accountID string) {
 		jsonErr(w, err.Error(), 500)
 		return
 	}
-	store.DeleteAccount(accountID)
+	if err := store.DeleteAccount(accountID); err != nil {
+		jsonErr(w, err.Error(), 500)
+		return
+	}
 	jsonOK(w, map[string]any{"ok": true}, 200)
 }
 
@@ -131,8 +134,14 @@ func StopAccount(w http.ResponseWriter, r *http.Request, accountID string) {
 		jsonErr(w, "Account not found", 404)
 		return
 	}
-	cli.ZevBotStop(account.Phone)
-	store.UpdateAccountStatus(accountID, "disconnected")
+	if err := cli.ZevBotStop(account.Phone); err != nil {
+		jsonErr(w, err.Error(), 500)
+		return
+	}
+	if err := store.UpdateAccountStatus(accountID, "disconnected"); err != nil {
+		jsonErr(w, err.Error(), 500)
+		return
+	}
 	jsonOK(w, map[string]any{"ok": true}, 200)
 }
 
@@ -147,7 +156,13 @@ func RestartAccount(w http.ResponseWriter, r *http.Request, accountID string) {
 		jsonErr(w, "Account not found", 404)
 		return
 	}
-	cli.ZevBotRestart(account.Phone)
-	store.UpdateAccountStatus(accountID, "pending_qr")
+	if err := cli.ZevBotRestart(account.Phone); err != nil {
+		jsonErr(w, err.Error(), 500)
+		return
+	}
+	if err := store.UpdateAccountStatus(accountID, "pending_qr"); err != nil {
+		jsonErr(w, err.Error(), 500)
+		return
+	}
 	jsonOK(w, map[string]any{"ok": true}, 200)
 }

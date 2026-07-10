@@ -1,6 +1,6 @@
 FROM node:24-slim AS frontend-builder
 
-WORKDIR /app/frontend
+WORKDIR /app/client
 COPY frontend/package*.json ./
 RUN npm ci
 COPY frontend/ ./
@@ -13,7 +13,7 @@ COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
 
-COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
+COPY --from=frontend-builder /app/client/dist ./client/dist
 RUN CGO_ENABLED=1 GOOS=linux go build -o wha-http .
 
 FROM debian:bookworm-slim

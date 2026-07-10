@@ -39,7 +39,9 @@
 
 	onMount(async () => {
 		try {
-			;[account, hooks] = await Promise.all([getAccount(id), listHooks(id)])
+			const [accRes, hooksRes] = await Promise.all([getAccount(id), listHooks(id)])
+			account = accRes.account
+			hooks = hooksRes
 		} catch (err: any) {
 			error = err.message
 			return
@@ -60,7 +62,7 @@
 				pairQr = msg.payload.code as string
 				pairStatus = 'pending'
 			}
-			if (msg.type === 'pair_success') {
+			if (msg.type === 'pair_success' || msg.type === 'connected') {
 				pairStatus = 'success'
 				pairCode = null
 				pairQr = null
@@ -82,12 +84,14 @@
 
 	async function handleStop() {
 		await stopAccount(id)
-		account = await getAccount(id)
+		const res = await getAccount(id)
+		account = res.account
 	}
 
 	async function handleRestart() {
 		await restartAccount(id)
-		account = await getAccount(id)
+		const res = await getAccount(id)
+		account = res.account
 	}
 
 	async function handleAddHook(e: SubmitEvent) {
@@ -119,6 +123,7 @@
 		connected: 'bg-emerald-50 text-emerald-700 border-emerald-200',
 		disconnected: 'bg-red-50 text-red-700 border-red-200',
 		pending_qr: 'bg-amber-50 text-amber-700 border-amber-200',
+		pending_pair: 'bg-amber-50 text-amber-700 border-amber-200',
 	}
 
 	const wsStatusStyles: Record<typeof wsStatus, string> = {
@@ -186,7 +191,7 @@
 			</div>
 
 			<!-- Pairing panel -->
-			{#if account.status === 'pending_qr' || pairStatus === 'pending'}
+			{#if (account.status === 'pending_qr' || account.status === 'pending_pair') && pairStatus !== 'success'}
 				<div class="rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 space-y-2">
 					<h3 class="text-sm font-semibold text-amber-800">Waiting for pairing</h3>
 					{#if pairCode}
@@ -194,8 +199,7 @@
 						<p class="font-mono text-2xl font-bold tracking-widest text-amber-900">{pairCode}</p>
 					{:else if pairQr}
 						<p class="text-xs text-amber-700">Scan this QR code:</p>
-						<pre
-							class="text-xs font-mono text-amber-900 whitespace-pre-wrap break-all">{pairQr}</pre>
+						<pre class="text-xs font-mono text-amber-900 whitespace-pre-wrap break-all">{pairQr}</pre>
 					{:else}
 						<p class="text-xs text-amber-700">Connecting to WhatsApp…</p>
 					{/if}

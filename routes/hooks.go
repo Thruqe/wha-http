@@ -76,6 +76,9 @@ func DeleteHook(w http.ResponseWriter, r *http.Request, accountID, hookID string
 		jsonErr(w, "Account not found", 404)
 		return
 	}
-	store.DeleteHook(hookID, accountID)
+	if err := store.DeleteHook(hookID, accountID); err != nil {
+		jsonErr(w, err.Error(), 500)
+		return
+	}
 	jsonOK(w, map[string]any{"ok": true}, 200)
 }

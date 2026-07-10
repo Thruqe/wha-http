@@ -48,7 +48,9 @@ func GetAccountsByUser(userID string) ([]WaAccount, error) {
 	var list []WaAccount
 	for rows.Next() {
 		var a WaAccount
-		rows.Scan(&a.ID, &a.UserID, &a.Phone, &a.Port, &a.Status, &a.CreatedAt)
+		if err := rows.Scan(&a.ID, &a.UserID, &a.Phone, &a.Port, &a.Status, &a.CreatedAt); err != nil {
+			return nil, err
+		}
 		list = append(list, a)
 	}
 	return list, nil
@@ -81,7 +83,9 @@ func AllocatePort() (int, error) {
 	used := make(map[int]bool)
 	for rows.Next() {
 		var p int
-		rows.Scan(&p)
+		if err := rows.Scan(&p); err != nil {
+			return 0, err
+		}
 		used[p] = true
 	}
 	for p := 3000; p <= 5000; p++ {
@@ -106,7 +110,9 @@ func GetHooksByAccount(accountID string) ([]Hook, error) {
 	var list []Hook
 	for rows.Next() {
 		var h Hook
-		rows.Scan(&h.ID, &h.WaAccountID, &h.EventType, &h.TargetURL, &h.Secret, &h.CreatedAt)
+		if err := rows.Scan(&h.ID, &h.WaAccountID, &h.EventType, &h.TargetURL, &h.Secret, &h.CreatedAt); err != nil {
+			return nil, err
+		}
 		list = append(list, h)
 	}
 	return list, nil

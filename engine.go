@@ -10,11 +10,12 @@ import (
 	"time"
 
 	"github.com/zevlion/wha-http/store"
-	"github.com/zevlion/wha-http/util"
 )
 
 var internalEvents = map[string]bool{
-	"ack": true, "connected": true, "upstream_closed": true, "error": true,
+	"ack":            true,
+	"upstream_closed": true,
+	"error":          true,
 }
 
 type zevEvent struct {
@@ -26,10 +27,26 @@ type zevEvent struct {
 func ProcessEvent(accountID, raw string) {
 	var event zevEvent
 	if err := json.Unmarshal([]byte(raw), &event); err != nil {
-		util.Warn("[engine] unparseable event for account %s: %s", accountID, raw)
+		Warn("[engine] unparseable event for account %s: %s", accountID, raw)
 		return
 	}
-	util.Info("[engine] event type=%s account=%s", event.Type, accountID)
+	Info("[engine] event type=%s account=%s", event.Type, accountID)
+
+	// update account status based on event
+	switch event.Type {
+	case "pair_success", "connected":
+		if err := store.UpdateAccountStatus(accountID, "connected"); err != nil {
+			Error("[engine] failed to update account status to connected: %v", err)
+		} else {
+			Info("[engine] account %s status → connected", accountID)
+		}
+	case "logged_out", "disconnected", "upstream_closed":
+		if err := store.UpdateAccountStatus(accountID, "disconnected"); err != nil {
+			Error("[engine] failed to update account status to disconnected: %v", err)
+		} else {
+			Info("[engine] account %s status → disconnected", accountID)
+		}
+	}
 
 	if internalEvents[event.Type] {
 		return
@@ -40,7 +57,7 @@ func ProcessEvent(accountID, raw string) {
 		return
 	}
 
-	util.Info("[engine] delivering to %d hook(s)", len(hooks))
+	Info("[engine] delivering to %d hook(s)", len(hooks))
 
 	for _, hook := range hooks {
 		go deliver(hook, accountID, raw)
@@ -66,7 +83,7 @@ func deliver(hook store.Hook, accountID, raw string) {
 
 	req, err := http.NewRequest("POST", hook.TargetURL, bytes.NewReader(body))
 	if err != nil {
-		util.Error("[engine] bad hook URL %s: %v", hook.TargetURL, err)
+		Error("[engine] bad hook URL %s: %v", hook.TargetURL, err)
 		return
 	}
 	for k, v := range headers {
@@ -76,9 +93,9 @@ func deliver(hook store.Hook, accountID, raw string) {
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
-		util.Error("[engine] webhook delivery failed → %s: %v", hook.TargetURL, err)
+		Error("[engine] webhook delivery failed → %s: %v", hook.TargetURL, err)
 		return
 	}
 	defer resp.Body.Close()
-	util.Info("[engine] webhook delivered → %s (%d)", hook.TargetURL, resp.StatusCode)
+	Info("[engine] webhook delivered → %s (%d)", hook.TargetURL, resp.StatusCode)
 }

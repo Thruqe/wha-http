@@ -8,7 +8,6 @@ import (
 
 	"github.com/zevlion/wha-http/routes"
 	"github.com/zevlion/wha-http/store"
-	"github.com/zevlion/wha-http/util"
 )
 
 var (
@@ -33,14 +32,14 @@ func withCORS(h http.Handler) http.Handler {
 
 func main() {
 	if err := store.Init(); err != nil {
-		util.Error("failed to init db: %v", err)
+		Error("failed to init db: %v", err)
 		os.Exit(1)
 	}
 
 	mux := http.NewServeMux()
 
 	// SPA — serve frontend/build, fall back to index.html for client-side routing
-	spaDir := "frontend/build"
+	spaDir := "client/build"
 	spaFS := http.FileServer(http.Dir(spaDir))
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
@@ -127,9 +126,9 @@ func main() {
 		port = "8080"
 	}
 
-	util.Info("[WHA-HTTP] listening on port %s", port)
+	Info("[WHA-HTTP] listening on port %s", port)
 	if err := http.ListenAndServe(":"+port, withCORS(mux)); err != nil {
-		util.Error("server error: %v", err)
+		Error("server error: %v", err)
 		os.Exit(1)
 	}
 }

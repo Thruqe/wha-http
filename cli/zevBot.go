@@ -5,8 +5,6 @@ import (
 	"os"
 	"os/exec"
 	"strings"
-
-	"github.com/zevlion/wha-http/util"
 )
 
 var (
@@ -39,7 +37,7 @@ func writeScript(phone string, args []string) (string, error) {
 	if err := os.WriteFile(path, []byte(content), 0o755); err != nil {
 		return "", err
 	}
-	util.Trace("[zevbot] wrote script: %s", path)
+	Trace("[zevbot] wrote script: %s", path)
 	return path, nil
 }
 
@@ -116,7 +114,7 @@ func ZevBotLogout(phone string) error {
 		"--logout",
 	)
 	out, err := cmd.CombinedOutput()
-	util.Trace("[zevbot] logout output: %s", string(out))
+	Trace("[zevbot] logout output: %s", string(out))
 	if err != nil {
 		return fmt.Errorf("zevBot logout failed: %w", err)
 	}

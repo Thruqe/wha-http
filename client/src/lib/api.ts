@@ -4,7 +4,7 @@ export interface Account {
     id: string
     phone: string
     port: number
-    status: 'pending_qr' | 'connected' | 'disconnected'
+    status: 'pending_qr' | 'pending_pair' | 'connected' | 'disconnected'
     createdAt: number
 }
 
@@ -49,12 +49,12 @@ export const me = () =>
 // Accounts
 export const listAccounts = () => req<Account[]>('GET', '/accounts')
 export const addAccount = (phone: string, mode: 'qr' | 'pair' = 'pair', pairPhone?: string) =>
-    req<Account>('POST', '/accounts', {
+    req<{ account: Account }>('POST', '/accounts', {
         phone,
         mode,
         ...(pairPhone ? { pairPhone } : {}),
     })
-export const getAccount = (id: string) => req<Account>('GET', `/accounts/${id}`)
+export const getAccount = (id: string) => req<{ account: Account }>('GET', `/accounts/${id}`)
 export const removeAccount = (id: string) => req<null>('DELETE', `/accounts/${id}`)
 export const stopAccount = (id: string) => req<null>('POST', `/accounts/${id}/stop`)
 export const restartAccount = (id: string) => req<null>('POST', `/accounts/${id}/restart`)

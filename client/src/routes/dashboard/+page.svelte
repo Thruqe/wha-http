@@ -27,9 +27,10 @@
 		error = null
 		adding = true
 		try {
-			const account = await addAccount(newPhone, newMode, newMode === 'pair' ? newPhone : undefined)
-			accounts = [...accounts, account]
+			const res = await addAccount(newPhone, newMode, newMode === 'pair' ? newPhone : undefined)
+			accounts = [...accounts, res.account]
 			newPhone = ''
+			goto(`/accounts/${res.account.id}`)
 		} catch (err: any) {
 			error = err.message
 		} finally {
@@ -51,6 +52,7 @@
 		connected: 'bg-emerald-50 text-emerald-700 border-emerald-200',
 		disconnected: 'bg-red-50 text-red-700 border-red-200',
 		pending_qr: 'bg-amber-50 text-amber-700 border-amber-200',
+		pending_pair: 'bg-amber-50 text-amber-700 border-amber-200',
 	}
 </script>
 
