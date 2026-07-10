@@ -4,77 +4,19 @@ import { getAccountByIdAndUser } from "../../db/accounts";
 import { logger } from "../logger";
 import { processEvent } from "../engine";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
 interface ProxyData {
 	accountId: string;
 	userId: string;
 	port: number;
 }
 
-// ─── State ────────────────────────────────────────────────────────────────────
-
 const upstreams = new Map<string, WebSocket>();
 const subscribers = new Map<string, Set<ServerWebSocket<ProxyData>>>();
-
-// ─── Config ───────────────────────────────────────────────────────────────────
 
 const UPSTREAM_RETRY_DELAY = 500; // ms between retries
 const UPSTREAM_MAX_RETRIES = 20; // 20 * 500ms = 10s total
 
-// ─── Upstream connection ──────────────────────────────────────────────────────
-
-function openUpstream(accountId: string, port: number): WebSocket {
-	const ws = new WebSocket(`ws://localhost:${port}/ws`);
-
-	ws.onopen = () => {
-		logger.trace(
-			`[proxy] upstream connected for account ${accountId} on port ${port}`,
-		);
-	};
-
-	ws.onmessage = (event) => {
-		const data = event.data as string;
-
-		processEvent(accountId, data).catch((err) =>
-			logger.error(`[proxy] engine error for account ${accountId}:`, err),
-		);
-
-		const subs = subscribers.get(accountId);
-		if (!subs) return;
-		for (const client of subs) {
-			if (client.readyState === WebSocket.OPEN) {
-				client.send(data);
-			}
-		}
-	};
-
-	ws.onclose = () => {
-		upstreams.delete(accountId);
-		const subs = subscribers.get(accountId);
-		if (!subs) return;
-		for (const client of subs) {
-			client.send(JSON.stringify({ type: "upstream_closed", accountId }));
-			client.close(1001, "upstream closed");
-		}
-		subscribers.delete(accountId);
-	};
-
-	ws.onerror = () => {
-		// onerror always fires before onclose — onclose handles cleanup
-		logger.warn(`[proxy] upstream connection failed for account ${accountId}`);
-	};
-
-	upstreams.set(accountId, ws);
-	return ws;
-}
-
-// src/ws/proxy.ts — replace connectUpstreamWithRetry
-
-async function connectUpstreamWithRetry(
-	accountId: string,
-	port: number,
-): Promise<void> {
+async function Upstream(accountId: string, port: number): Promise<void> {
 	for (let attempt = 1; attempt <= UPSTREAM_MAX_RETRIES; attempt++) {
 		const existing = upstreams.get(accountId);
 		if (existing && existing.readyState === WebSocket.OPEN) return;
@@ -92,7 +34,6 @@ async function connectUpstreamWithRetry(
 
 			probe.onopen = () => {
 				clearTimeout(timer);
-				// Hand off to the real upstream handler
 				upstreams.set(accountId, probe);
 
 				probe.onmessage = (event) => {
@@ -154,8 +95,6 @@ async function connectUpstreamWithRetry(
 	subscribers.delete(accountId);
 }
 
-// ─── Bun WS handlers ─────────────────────────────────────────────────────────
-
 export const wsProxy = {
 	async upgrade(
 		req: Request,
@@ -198,7 +137,7 @@ export const wsProxy = {
 			data: {
 				accountId,
 				userId: payload.userId,
-				port: account.port, // ← no longer passing upstream here
+				port: account.port,
 			} satisfies ProxyData,
 		});
 
@@ -225,7 +164,7 @@ export const wsProxy = {
 		ws.send(JSON.stringify({ type: "connected", accountId }));
 
 		// Kick off retry loop in background — don't block
-		connectUpstreamWithRetry(accountId, port).catch((err) =>
+		Upstream(accountId, port).catch((err) =>
 			logger.error(`[proxy] retry loop error for account ${accountId}:`, err),
 		);
 	},

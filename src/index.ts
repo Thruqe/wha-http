@@ -28,18 +28,18 @@ Bun.serve({
 		const url = new URL(req.url);
 		const method = req.method;
 
-		// ── WS upgrade ────────────────────────────────────────────────
+		// ─ WS upgrade
 		if (url.pathname.startsWith("/ws/")) {
 			return wsProxy.upgrade(req, server);
 		}
 
-		// ── Auth
+		// ─ Auth
 		if (url.pathname === "/auth/register" && method === "POST")
 			return register(req);
 		if (url.pathname === "/auth/login" && method === "POST") return login(req);
 		if (url.pathname === "/auth/me" && method === "GET") return me(req);
 
-		// ── Accounts
+		// ─ Accounts
 		if (url.pathname === "/accounts" && method === "GET")
 			return listAccounts(req);
 		if (url.pathname === "/accounts" && method === "POST")
@@ -58,7 +58,7 @@ Bun.serve({
 				return restartAccount(req, accountId);
 		}
 
-		// ── Hooks
+		// ─ Hooks
 		const hookMatch = url.pathname.match(
 			/^\/accounts\/([^/]+)\/hooks(\/([^/]+))?$/,
 		);

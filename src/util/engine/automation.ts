@@ -69,23 +69,19 @@ async function deliverWebhook(
 	}
 }
 
-// ── Main processor
-
 /**
  * Called for every event received from a zevBot instance.
  * Fans out to all hooks configured for the account.
  */
 export async function processEvent(
 	accountId: string,
-	rawEvent: string,
+	rawEvent: any,
 ): Promise<void> {
 	let event: ZevBotEvent;
 
 	try {
 		event = JSON.parse(rawEvent);
 	} catch {
-		// zevBot sometimes sends plain strings (e.g. "Paired successfully!")
-		// wrap them so hooks always receive JSON
 		event = { tag: "raw", type: "string", content: rawEvent };
 	}
 

@@ -1,4 +1,3 @@
-// src/routes/auth.ts
 import { randomUUID } from "crypto";
 import { createUser, getUserByEmail } from "../db/users";
 import { hashPassword, verifyPassword } from "../auth/password";

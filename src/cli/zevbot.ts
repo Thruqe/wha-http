@@ -1,4 +1,3 @@
-// src/cli/zevbot.ts
 import { logger } from "../util/logger";
 import { mkdirSync, writeFileSync, chmodSync, unlinkSync } from "fs";
 import * as rpm from "./rpm";
@@ -16,8 +15,6 @@ export interface ZevBotSession {
 export function sessionName(phone: string): string {
 	return `wa-${phone}`;
 }
-
-// ─── Script writer ────────────────────────────────────────────────────────────
 
 function writeScript(phone: string, zevbotArgs: string[]): string {
 	mkdirSync(SCRIPTS_DIR, { recursive: true });
@@ -39,8 +36,6 @@ function removeScript(phone: string): void {
 		/* already gone */
 	}
 }
-
-// ─── Lifecycle ────────────────────────────────────────────────────────────────
 
 export async function start(
 	opts: ZevBotSession & { watch?: boolean; force?: boolean },
@@ -87,8 +82,6 @@ export async function isRunning(phone: string): Promise<boolean> {
 	logger.trace(`[zevbot] isRunning session="${phone}"`);
 	return rpm.isRunning(sessionName(phone));
 }
-
-// ─── Session management ───────────────────────────────────────────────────────
 
 export async function startWithQr(
 	opts: ZevBotSession & { force?: boolean },
