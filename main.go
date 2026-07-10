@@ -6,10 +6,9 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/zevlion/wha-http/internal/db"
-	"github.com/zevlion/wha-http/internal/logger"
-	"github.com/zevlion/wha-http/internal/routes"
-	"github.com/zevlion/wha-http/internal/ws"
+	"github.com/zevlion/wha-http/routes"
+	"github.com/zevlion/wha-http/store"
+	"github.com/zevlion/wha-http/util"
 )
 
 var (
@@ -20,8 +19,8 @@ var (
 )
 
 func main() {
-	if err := db.Init(); err != nil {
-		logger.Error("failed to init db: %v", err)
+	if err := store.Init(); err != nil {
+		util.Error("failed to init db: %v", err)
 		os.Exit(1)
 	}
 
@@ -33,7 +32,7 @@ func main() {
 
 		// WebSocket
 		if strings.HasPrefix(path, "/ws/") {
-			ws.Handler(w, r)
+			Handler(w, r)
 			return
 		}
 
@@ -104,9 +103,9 @@ func main() {
 		port = "8080"
 	}
 
-	logger.Info("[WHA-HTTP] listening on port %s", port)
+	util.Info("[WHA-HTTP] listening on port %s", port)
 	if err := http.ListenAndServe(":"+port, mux); err != nil {
-		logger.Error("server error: %v", err)
+		util.Error("server error: %v", err)
 		os.Exit(1)
 	}
 }
