@@ -8,16 +8,14 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/zevlion/wha-http/cli"
-	"github.com/zevlion/wha-http/routes"
-	"github.com/zevlion/wha-http/store"
+	"github.com/Thruqe/whatsrook/cli"
+	"github.com/Thruqe/whatsrook/routes"
+	"github.com/Thruqe/whatsrook/store"
 )
 
 var (
 	accountRe    = regexp.MustCompile(`^/accounts/([^/]+)$`)
 	accountActRe = regexp.MustCompile(`^/accounts/([^/]+)/(stop|restart)$`)
-	hooksRe      = regexp.MustCompile(`^/accounts/([^/]+)/hooks$`)
-	hookRe       = regexp.MustCompile(`^/accounts/([^/]+)/hooks/([^/]+)$`)
 )
 
 func withCORS(h http.Handler) http.Handler {
@@ -86,7 +84,7 @@ func main() {
 
 	mux := http.NewServeMux()
 
-	spaDir := "client/build"
+	spaDir := "client"
 	spaFS := http.FileServer(http.Dir(spaDir))
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
@@ -107,6 +105,9 @@ func main() {
 		case path == "/auth/me" && method == "GET":
 			routes.Me(w, r)
 			return
+		case path == "/stats" && method == "GET":
+			routes.GetStatsHandler(w, r)
+			return
 		case path == "/accounts" && method == "GET":
 			routes.ListAccounts(w, r)
 			return
@@ -121,25 +122,6 @@ func main() {
 				routes.StopAccount(w, r, m[1])
 			case method == "POST" && m[2] == "restart":
 				routes.RestartAccount(w, r, m[1])
-			default:
-				http.NotFound(w, r)
-			}
-			return
-		}
-		if m := hookRe.FindStringSubmatch(path); m != nil {
-			if method == "DELETE" {
-				routes.DeleteHook(w, r, m[1], m[2])
-			} else {
-				http.NotFound(w, r)
-			}
-			return
-		}
-		if m := hooksRe.FindStringSubmatch(path); m != nil {
-			switch method {
-			case "GET":
-				routes.ListHooks(w, r, m[1])
-			case "POST":
-				routes.CreateHook(w, r, m[1])
 			default:
 				http.NotFound(w, r)
 			}

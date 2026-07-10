@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="WHA-HTTP — WhatsApp HTTP gateway dashboard" />
+  <meta name="theme-color" content="#18181b" />
+  <!-- No external fonts, no external CSS, no external scripts -->
+  <title>WHA-HTTP</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <noscript>
+    <style>
+      .ns { display:flex; align-items:center; justify-content:center;
+            min-height:100vh; font-family:system-ui,sans-serif;
+            font-size:14px; color:#52525b; }
+    </style>
+    <div class="ns">JavaScript is required to use WHA-HTTP.</div>
+  </noscript>
+
+  <div id="app" role="main"></div>
+
+  <!--
+    Entry point — native ES module, no bundler required.
+    The Go server serves this directory as-is.
+  -->
+  <script type="module" src="/js/app.js"></script>
+</body>
+</html>

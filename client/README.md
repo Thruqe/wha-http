@@ -1,42 +1,49 @@
-# sv
+# client
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+Static web frontend for WHA-HTTP. Pure HTML, CSS, and JavaScript — no build step, no npm, no Node.js required.
 
-## Creating a project
+## Structure
 
-If you're seeing this, you've probably already done this step. Congrats!
-
-```sh
-# create a new project
-npx sv create my-app
+```
+client/
+├── index.html          # SPA shell — hash-based routing (#/login, #/dashboard, …)
+├── style.css           # All styles; system fonts only, zero network requests
+├── favicon.svg         # Inline SVG favicon
+└── js/
+    ├── app.js          # Entry point — registers routes, boots router
+    ├── router.js       # Hash-change router with per-page cleanup
+    ├── dom.js          # el(), formHandler(), statusBadge() helpers
+    ├── auth.js         # Token + user state (localStorage)
+    ├── api.js          # Fetch wrapper for all REST endpoints
+    ├── ws.js           # WebSocket wrapper with reconnect + ack/timeout
+    └── pages/
+        ├── login.js
+        ├── register.js
+        ├── dashboard.js
+        └── account.js
 ```
 
-To recreate this project with the same configuration:
+## Development
+
+The Go server (`../main.go`) serves this directory directly on `http://localhost:8080`.
+Start the backend and open `http://localhost:8080` in your browser — no separate dev server needed.
 
 ```sh
-# recreate this project
-npx sv@0.16.1 create --template minimal --types ts --install npm frontend
+# from the repo root
+go run .
 ```
 
-## Developing
+Edit any file under `client/` and refresh the browser. Because these are native ES modules
+the browser re-fetches only the changed file on each reload.
 
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+## Routing
 
-```sh
-npm run dev
+All navigation is hash-based so the server never needs to handle client-side routes:
 
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
-```
-
-## Building
-
-To create a production version of your app:
-
-```sh
-npm run build
-```
-
-You can preview the production build with `npm run preview`.
-
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+| Hash            | Page             |
+|-----------------|------------------|
+| `#/`            | → redirect       |
+| `#/login`       | Login            |
+| `#/register`    | Register         |
+| `#/dashboard`   | Account list     |
+| `#/accounts/:id`| Account detail   |

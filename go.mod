@@ -1,4 +1,4 @@
-module github.com/zevlion/wha-http
+module github.com/Thruqe/whatsrook
 
 go 1.26.4
 

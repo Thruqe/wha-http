@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/google/uuid"
-	"github.com/zevlion/wha-http/store"
+	"github.com/Thruqe/whatsrook/store"
 )
 
 func Register(w http.ResponseWriter, r *http.Request) {

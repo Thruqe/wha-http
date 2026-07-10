@@ -11,8 +11,8 @@ import (
 
 	"github.com/coder/websocket"
 	"github.com/coder/websocket/wsjson"
-	"github.com/zevlion/wha-http/cli"
-	"github.com/zevlion/wha-http/store"
+	"github.com/Thruqe/whatsrook/cli"
+	"github.com/Thruqe/whatsrook/store"
 )
 
 type client struct {

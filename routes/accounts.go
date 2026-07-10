@@ -5,8 +5,8 @@ import (
 	"net/http"
 
 	"github.com/google/uuid"
-	"github.com/zevlion/wha-http/cli"
-	"github.com/zevlion/wha-http/store"
+	"github.com/Thruqe/whatsrook/cli"
+	"github.com/Thruqe/whatsrook/store"
 )
 
 func ListAccounts(w http.ResponseWriter, r *http.Request) {

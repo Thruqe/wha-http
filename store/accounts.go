@@ -14,15 +14,6 @@ type WaAccount struct {
 	CreatedAt int64  `json:"createdAt"`
 }
 
-type Hook struct {
-	ID          string  `json:"id"`
-	WaAccountID string  `json:"waAccountId"`
-	EventType   string  `json:"eventType"`
-	TargetURL   string  `json:"targetUrl"`
-	Secret      *string `json:"secret,omitempty"`
-	CreatedAt   int64   `json:"createdAt"`
-}
-
 func GetAccountByID(accountID string) (*WaAccount, error) {
 	row := DB.QueryRow(
 		`SELECT id, user_id, phone, port, status, created_at FROM wa_accounts WHERE id = ?`,
@@ -66,6 +57,9 @@ func GetAccountsByUser(userID string) ([]WaAccount, error) {
 		}
 		list = append(list, a)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 	return list, nil
 }
 
@@ -101,6 +95,9 @@ func AllocatePort() (int, error) {
 		}
 		used[p] = true
 	}
+	if err := rows.Err(); err != nil {
+		return 0, err
+	}
 	for p := 3000; p <= 5000; p++ {
 		if !used[p] {
 			return p, nil
@@ -125,40 +122,8 @@ func GetAllActiveAccounts() ([]WaAccount, error) {
 		}
 		list = append(list, a)
 	}
-	return list, nil
-}
-
-// Hooks
-
-func GetHooksByAccount(accountID string) ([]Hook, error) {
-	rows, err := DB.Query(
-		`SELECT id, wa_account_id, event_type, target_url, secret, created_at FROM hooks WHERE wa_account_id = ?`,
-		accountID,
-	)
-	if err != nil {
+	if err := rows.Err(); err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-	var list []Hook
-	for rows.Next() {
-		var h Hook
-		if err := rows.Scan(&h.ID, &h.WaAccountID, &h.EventType, &h.TargetURL, &h.Secret, &h.CreatedAt); err != nil {
-			return nil, err
-		}
-		list = append(list, h)
-	}
 	return list, nil
-}
-
-func CreateHook(h Hook) error {
-	_, err := DB.Exec(
-		`INSERT INTO hooks (id, wa_account_id, event_type, target_url, secret) VALUES (?, ?, ?, ?, ?)`,
-		h.ID, h.WaAccountID, h.EventType, h.TargetURL, h.Secret,
-	)
-	return err
-}
-
-func DeleteHook(hookID, accountID string) error {
-	_, err := DB.Exec(`DELETE FROM hooks WHERE id = ? AND wa_account_id = ?`, hookID, accountID)
-	return err
 }

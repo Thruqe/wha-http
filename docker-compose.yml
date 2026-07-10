@@ -1,4 +1,4 @@
-name: wha-http
+name: whatsrook
 
 services:
   app:
@@ -9,8 +9,7 @@ services:
       - "8080:8080"
     environment:
       PORT: "8080"
-      RPM_BIN: /usr/local/bin/rpm
-      ZEVBOT_BIN: /usr/local/bin/zevBot
+      WHATSROOK_BIN: /usr/local/bin/whatsrook
       JWT_SECRET: ${JWT_SECRET} # set in .env
     volumes:
       - data:/app/data # persist the SQLite db
