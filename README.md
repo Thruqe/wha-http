@@ -1,47 +1,6 @@
 # WHA-HTTP
 
-A self-hosted, multi-tenant WhatsApp automation platform. Connect multiple WhatsApp accounts, stream real-time events, and forward them to webhooks — all managed through a simple REST and WebSocket API.
-
----
-
-## Description
-
-WHA-HTTP sits between your application and WhatsApp. Each WhatsApp account gets its own isolated `zevBot` process (a Rust binary built on `whatsapp-rust`), managed by `rpm` (a native process manager). A Bun.js backend handles authentication, account provisioning, WebSocket proxying, and webhook delivery.
-
----
-
-## Architecture
-
-```
-Your App / Dashboard
-        │
-        │  HTTPS / WSS
-        ▼
-┌─────────────────────────┐
-│     Bun.js Backend      │  Auth · REST API · WS Proxy · Webhook Engine
-└────────────┬────────────┘
-             │ WebSocket (per account)
-    ┌────────┴────────┐
-    ▼                 ▼
-[zevBot :4000]   [zevBot :4001]   ...one per WA account
-(account A)      (account B)
-    └──────── managed by rpm ─────┘
-```
-
----
-
-## Stack
-
-| Component       | Technology                               |
-| --------------- | ---------------------------------------- |
-| WhatsApp engine | Rust (`zevBot` binary, `whatsapp-rust`)  |
-| Process manager | `rpm` (native PM2 alternative)           |
-| Backend / API   | Bun.js + TypeScript                      |
-| Database        | SQLite via Drizzle ORM                   |
-| Auth            | JWT (via `jose`)                         |
-| Real-time       | WebSockets (Bun native + upstream proxy) |
-
----
+WHA-HTTP is an open-source, self-hosted WhatsApp gateway that lets you connect multiple accounts and automate messaging workflows over HTTP, WebSockets, and webhooks.
 
 ## Features
 
@@ -51,8 +10,6 @@ Your App / Dashboard
 - **Webhook delivery** — forward every event to one or more HTTP endpoints with optional HMAC-SHA256 signature verification
 - **Auto-restart** — rpm watches each zevBot instance and restarts it on crash
 - **JWT auth** — stateless authentication with 7-day tokens
-
----
 
 ## API Reference
 
@@ -91,8 +48,6 @@ Your App / Dashboard
 
 Authenticate via `?token=<jwt>` query param or `Authorization: Bearer <jwt>` header.
 
----
-
 ## Adding a WhatsApp Account
 
 ```bash
@@ -112,8 +67,6 @@ curl -X POST http://localhost:8080/accounts \
 # Enter the code on your phone: WhatsApp → Linked Devices → Link with phone number
 ```
 
----
-
 ## Webhook Events
 
 Every event emitted by a connected WhatsApp account is forwarded to registered webhooks as an HTTP POST:
@@ -132,7 +85,6 @@ Every event emitted by a connected WhatsApp account is forwarded to registered w
 
 If a webhook secret is configured, each request includes an `X-WHA-Signature` header — an HMAC-SHA256 hex digest of the request body signed with your secret.
 
----
 
 ## Environment Variables
 
@@ -146,8 +98,6 @@ If a webhook secret is configured, each request includes an `X-WHA-Signature` he
 | `ZEVBOT_AUTH_DIR`    | `/workspaces/wha-http/auth` | Directory for WA session files           |
 | `ZEVBOT_SCRIPTS_DIR` | `/tmp/wha-http-scripts`     | Directory for per-session launch scripts |
 
----
-
 ## Contributing
 
-Contributions are welcome — feel free to open an issue or submit a pull request. Please keep PRs focused and test with at least one real WhatsApp account before submitting.
+Contributions are welcome, please feel free to submit a pull request. Please keep PRs focused and test with at least one real WhatsApp account before submitting.
