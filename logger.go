@@ -5,78 +5,94 @@ import (
 	"fmt"
 	"os"
 	"time"
+
+	"github.com/rs/zerolog"
 )
 
 const (
-	reset   = "\x1b[0m"
-	bold    = "\x1b[1m"
-	cyan    = "\x1b[36m"
-	green   = "\x1b[32m"
-	yellow  = "\x1b[33m"
-	red     = "\x1b[31m"
-	magenta = "\x1b[35m"
-	gray    = "\x1b[90m"
-	white   = "\x1b[37m"
+	reset  = "\x1b[0m"
+	bold   = "\x1b[1m"
+	green  = "\x1b[32m"
+	yellow = "\x1b[33m"
+	red    = "\x1b[31m"
+	gray   = "\x1b[90m"
+	white  = "\x1b[37m"
 )
 
-type Level int
+type customWriter struct{}
 
-const (
-	LevelTrace Level = iota
-	LevelDebug
-	LevelInfo
-	LevelWarn
-	LevelError
-)
-
-var current = LevelTrace
-
-type entry struct {
-	level  Level
-	label  string
-	color  string
-	stderr bool
-}
-
-var levels = map[Level]entry{
-	LevelTrace: {LevelTrace, "TRACE", gray, false},
-	LevelDebug: {LevelDebug, "DEBUG", "\x1b[34m", false},
-	LevelInfo:  {LevelInfo, "INFO ", green, false},
-	LevelWarn:  {LevelWarn, "WARN ", yellow, false},
-	LevelError: {LevelError, "ERROR", red, true},
-}
-
-func write(l Level, msg string, args ...any) {
-	if l < current {
-		return
+func (w customWriter) Write(p []byte) (n int, err error) {
+	var ev map[string]any
+	if err := json.Unmarshal(p, &ev); err != nil {
+		return os.Stdout.Write(p)
 	}
-	e := levels[l]
-	t := time.Now().Format("15:04:05")
+
+	// Parse time
+	tStr, _ := ev[zerolog.TimestampFieldName].(string)
+	t, err := time.Parse(time.RFC3339, tStr)
+	if err != nil {
+		t = time.Now()
+	}
+	tFormatted := t.Format("15:04:05")
+
+	// Parse level
+	levelStr, _ := ev[zerolog.LevelFieldName].(string)
+
+	// Match colors and labels
+	var label, color string
+	var isStderr bool
+	switch levelStr {
+	case "trace":
+		label, color, isStderr = "TRACE", gray, false
+	case "debug":
+		label, color, isStderr = "DEBUG", "\x1b[34m", false
+	case "info":
+		label, color, isStderr = "INFO ", green, false
+	case "warn":
+		label, color, isStderr = "WARN ", yellow, false
+	case "error":
+		label, color, isStderr = "ERROR", red, true
+	default:
+		label, color, isStderr = "INFO ", green, false
+	}
+
+	msg, _ := ev[zerolog.MessageFieldName].(string)
+
 	line := fmt.Sprintf(
 		"%s%s%s %s%s%s%s (wha-http)%s: %s%s%s\n",
-		gray, t, reset,
-		e.color, bold, e.label, reset,
+		gray, tFormatted, reset,
+		color, bold, label, reset,
 		reset,
-		white, fmt.Sprintf(msg, args...), reset,
+		white, msg, reset,
 	)
-	if e.stderr {
+
+	if isStderr {
 		os.Stderr.WriteString(line)
 	} else {
 		os.Stdout.WriteString(line)
 	}
+	return len(p), nil
 }
 
-func writeObj(l Level, obj any, msg string) {
+var logger zerolog.Logger
+
+func init() {
+	zerolog.TimeFieldFormat = time.RFC3339
+	zerolog.SetGlobalLevel(zerolog.TraceLevel)
+	logger = zerolog.New(customWriter{}).With().Timestamp().Logger()
+}
+
+func Trace(msg string, args ...any) { logger.Trace().Msgf(msg, args...) }
+func Debug(msg string, args ...any) { logger.Debug().Msgf(msg, args...) }
+func Info(msg string, args ...any)  { logger.Info().Msgf(msg, args...) }
+func Warn(msg string, args ...any)  { logger.Warn().Msgf(msg, args...) }
+func Error(msg string, args ...any) { logger.Error().Msgf(msg, args...) }
+
+func writeObj(level zerolog.Level, obj any, msg string) {
 	b, _ := json.Marshal(obj)
-	write(l, "%s %s", msg, string(b))
+	logger.WithLevel(level).Msgf("%s %s", msg, string(b))
 }
 
-func Trace(msg string, args ...any) { write(LevelTrace, msg, args...) }
-func Debug(msg string, args ...any) { write(LevelDebug, msg, args...) }
-func Info(msg string, args ...any)  { write(LevelInfo, msg, args...) }
-func Warn(msg string, args ...any)  { write(LevelWarn, msg, args...) }
-func Error(msg string, args ...any) { write(LevelError, msg, args...) }
-
-func TraceObj(obj any, msg string) { writeObj(LevelTrace, obj, msg) }
-func InfoObj(obj any, msg string)  { writeObj(LevelInfo, obj, msg) }
-func ErrorObj(obj any, msg string) { writeObj(LevelError, obj, msg) }
+func TraceObj(obj any, msg string) { writeObj(zerolog.TraceLevel, obj, msg) }
+func InfoObj(obj any, msg string)  { writeObj(zerolog.InfoLevel, obj, msg) }
+func ErrorObj(obj any, msg string) { writeObj(zerolog.ErrorLevel, obj, msg) }

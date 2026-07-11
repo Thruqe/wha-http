@@ -13,9 +13,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
     && rm -rf /var/lib/apt/lists/*
 
-RUN wget -qO- https://github.com/zevlion/zevBot/releases/download/alpha/zevBot-linux-amd64.tar.gz \
+RUN wget -qO- https://github.com/Thruqe/whatsrook/releases/download/v3.1.0/whatsrook-linux-amd64.tar.gz \
     | tar -xz -C /usr/local/bin/ \
-    && mv /usr/local/bin/zevBot /usr/local/bin/whatsrook \
     && chmod +x /usr/local/bin/whatsrook
 
 WORKDIR /app

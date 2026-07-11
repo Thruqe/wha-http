@@ -2,7 +2,10 @@
     "name": "WHA-HTTP",
     "image": "golang:latest",
     "forwardPorts": [8080],
-    "postCreateCommand": "go install github.com/air-verse/air@latest",
+    "postCreateCommand": "go install github.com/air-verse/air@latest && wget -qO- https://github.com/Thruqe/whatsrook/releases/download/v3.1.0/whatsrook-linux-amd64.tar.gz | tar -xz -C /usr/local/bin/ && chmod +x /usr/local/bin/whatsrook",
+    "containerEnv": {
+        "WHATSROOK_BIN": "/usr/local/bin/whatsrook"
+    },
     "customizations": {
         "vscode": {
             "extensions": [

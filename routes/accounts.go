@@ -53,7 +53,7 @@ func AddAccount(w http.ResponseWriter, r *http.Request) {
 		jsonErr(w, "pairPhone is required for pair mode", 400)
 		return
 	}
-	running, _ := cli.ZevBotIsRunning(body.Phone)
+	running, _ := cli.BotIsRunning(body.Phone)
 	if running {
 		jsonErr(w, "Account already running", 409)
 		return
@@ -76,9 +76,9 @@ func AddAccount(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if body.Mode == "pair" {
-		err = cli.ZevBotStartWithPairCode(body.Phone, port, body.PairPhone, false)
+		err = cli.BotStartWithPairCode(body.Phone, port, body.PairPhone, false)
 	} else {
-		err = cli.ZevBotStartWithQr(body.Phone, port, false)
+		err = cli.BotStartWithQr(body.Phone, port, false)
 	}
 	if err != nil {
 		jsonErr(w, err.Error(), 500)
@@ -98,7 +98,7 @@ func GetAccount(w http.ResponseWriter, r *http.Request, accountID string) {
 		jsonErr(w, "Account not found", 404)
 		return
 	}
-	proc, _ := cli.ZevBotGet(account.Phone)
+	proc, _ := cli.BotGet(account.Phone)
 	jsonOK(w, map[string]any{"account": account, "process": proc}, 200)
 }
 
@@ -113,7 +113,7 @@ func RemoveAccount(w http.ResponseWriter, r *http.Request, accountID string) {
 		jsonErr(w, "Account not found", 404)
 		return
 	}
-	if err := cli.ZevBotLogout(account.Phone); err != nil {
+	if err := cli.BotLogout(account.Phone); err != nil {
 		jsonErr(w, err.Error(), 500)
 		return
 	}
@@ -135,7 +135,7 @@ func StopAccount(w http.ResponseWriter, r *http.Request, accountID string) {
 		jsonErr(w, "Account not found", 404)
 		return
 	}
-	if err := cli.ZevBotStop(account.Phone); err != nil {
+	if err := cli.BotStop(account.Phone); err != nil {
 		jsonErr(w, err.Error(), 500)
 		return
 	}
@@ -157,7 +157,7 @@ func RestartAccount(w http.ResponseWriter, r *http.Request, accountID string) {
 		jsonErr(w, "Account not found", 404)
 		return
 	}
-	if err := cli.ZevBotRestart(account.Phone); err != nil {
+	if err := cli.BotRestart(account.Phone); err != nil {
 		jsonErr(w, err.Error(), 500)
 		return
 	}

@@ -202,7 +202,7 @@ func connectUpstream(accountID, phone string, port int) {
 		Warn("[proxy] upstream did not come up, restarting process attempt=%d/%d account=%s phone=%s",
 			restartAttempt, maxRestarts, accountID, phone)
 
-		if err := cli.ZevBotRestart(phone); err != nil {
+		if err := cli.BotRestart(phone); err != nil {
 			Error("[proxy] restart failed attempt=%d account=%s err=%v", restartAttempt, accountID, err)
 			continue
 		}

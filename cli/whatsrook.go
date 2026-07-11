@@ -38,8 +38,9 @@ type proc struct {
 }
 
 var (
-	mu    sync.Mutex
-	procs = map[string]*proc{} // keyed by SessionName
+	mu            sync.Mutex
+	procs         = map[string]*proc{}    // keyed by SessionName
+	lastKnownArgs = map[string][]string{} // keyed by SessionName
 )
 
 // start launches whatsrook with the given extra args and registers it in procs.
@@ -74,6 +75,7 @@ func start(phone string, extraArgs []string) error {
 	p := &proc{cmd: cmd, done: make(chan struct{})}
 	mu.Lock()
 	procs[name] = p
+	lastKnownArgs[name] = args
 	mu.Unlock()
 
 	// Reap the process and clean up the map when it exits
@@ -94,19 +96,19 @@ func start(phone string, extraArgs []string) error {
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
-func ZevBotStart(phone string, port int, _, _ bool) error {
+func BotStart(phone string, port int, _, _ bool) error {
 	return start(phone, []string{"--port", fmt.Sprintf("%d", port)})
 }
 
-func ZevBotStartWithQr(phone string, port int, _ bool) error {
+func BotStartWithQr(phone string, port int, _ bool) error {
 	return start(phone, []string{"--port", fmt.Sprintf("%d", port), "--qrcode"})
 }
 
-func ZevBotStartWithPairCode(phone string, port int, _ string, _ bool) error {
+func BotStartWithPairCode(phone string, port int, _ string, _ bool) error {
 	return start(phone, []string{"--port", fmt.Sprintf("%d", port), "--pair"})
 }
 
-func ZevBotStop(phone string) error {
+func BotStop(phone string) error {
 	name := SessionName(phone)
 	mu.Lock()
 	p, ok := procs[name]
@@ -125,22 +127,27 @@ func ZevBotStop(phone string) error {
 	return nil
 }
 
-func ZevBotRestart(phone string) error {
+func BotRestart(phone string) error {
+	name := SessionName(phone)
 	mu.Lock()
-	p, ok := procs[SessionName(phone)]
+	p, ok := procs[name]
 	var args []string
 	if ok {
 		args = p.cmd.Args[1:]
+	} else {
+		args = lastKnownArgs[name]
 	}
 	mu.Unlock()
 
-	if !ok {
-		return fmt.Errorf("whatsrook restart: no running process for %s", phone)
+	if len(args) == 0 {
+		return fmt.Errorf("whatsrook restart: no running process or saved configuration for %s", phone)
 	}
 
-	fmt.Printf("[whatsrook] restarting %s\n", SessionName(phone))
-	_ = p.cmd.Process.Kill()
-	<-p.done
+	fmt.Printf("[whatsrook] restarting %s\n", name)
+	if ok && p.cmd.Process != nil {
+		_ = p.cmd.Process.Kill()
+		<-p.done
+	}
 
 	cmd := exec.Command(whatsrookBin, args...)
 	cmd.Stdout = os.Stdout
@@ -149,10 +156,10 @@ func ZevBotRestart(phone string) error {
 		return fmt.Errorf("whatsrook restart failed: %w", err)
 	}
 
-	name := SessionName(phone)
 	np := &proc{cmd: cmd, done: make(chan struct{})}
 	mu.Lock()
 	procs[name] = np
+	lastKnownArgs[name] = args
 	mu.Unlock()
 
 	go func() {
@@ -169,18 +176,18 @@ func ZevBotRestart(phone string) error {
 	return nil
 }
 
-func ZevBotDelete(phone string) error {
-	return ZevBotStop(phone)
+func BotDelete(phone string) error {
+	return BotStop(phone)
 }
 
-func ZevBotIsRunning(phone string) (bool, error) {
+func BotIsRunning(phone string) (bool, error) {
 	mu.Lock()
 	_, ok := procs[SessionName(phone)]
 	mu.Unlock()
 	return ok, nil
 }
 
-func ZevBotGet(phone string) (*ZevBotProcess, error) {
+func BotGet(phone string) (*BotProcess, error) {
 	mu.Lock()
 	p, ok := procs[SessionName(phone)]
 	mu.Unlock()
@@ -194,11 +201,11 @@ func ZevBotGet(phone string) (*ZevBotProcess, error) {
 		status = "stopped"
 	default:
 	}
-	return &ZevBotProcess{Name: SessionName(phone), Status: status}, nil
+	return &BotProcess{Name: SessionName(phone), Status: status}, nil
 }
 
-func ZevBotLogout(phone string) error {
-	_ = ZevBotStop(phone)
+func BotLogout(phone string) error {
+	_ = BotStop(phone)
 
 	cmd := exec.Command(whatsrookBin,
 		"--session", phone,
@@ -214,7 +221,7 @@ func ZevBotLogout(phone string) error {
 	return nil
 }
 
-type ZevBotProcess struct {
+type BotProcess struct {
 	Name   string
 	Status string
 }

@@ -40,7 +40,7 @@ func startAll() {
 	Info("[startup] starting %d active account(s)", len(accounts))
 	for _, a := range accounts {
 		a := a
-		if err := cli.ZevBotStart(a.Phone, a.Port, false, false); err != nil {
+		if err := cli.BotStart(a.Phone, a.Port, false, false); err != nil {
 			Error("[startup] failed to start zevBot for account=%s phone=%s err=%v", a.ID, a.Phone, err)
 			continue
 		}
@@ -56,7 +56,7 @@ func stopAll() {
 	}
 	Info("[shutdown] stopping %d active account(s)", len(accounts))
 	for _, a := range accounts {
-		if err := cli.ZevBotStop(a.Phone); err != nil {
+		if err := cli.BotStop(a.Phone); err != nil {
 			Error("[shutdown] failed to stop zevBot for account=%s phone=%s err=%v", a.ID, a.Phone, err)
 		} else {
 			Info("[shutdown] stopped zevBot phone=%s", a.Phone)
