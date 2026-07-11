@@ -24,6 +24,10 @@ func ListAccounts(w http.ResponseWriter, r *http.Request) {
 		accounts = []store.WaAccount{}
 	}
 
+	for i := range accounts {
+		accounts[i].PushName = cli.GetPushName(accounts[i].Phone)
+	}
+
 	jsonOK(w, accounts, 200)
 }
 
@@ -132,6 +136,7 @@ func GetAccount(w http.ResponseWriter, r *http.Request, accountID string) {
 		jsonErr(w, "Account not found", 404)
 		return
 	}
+	account.PushName = cli.GetPushName(account.Phone)
 	proc, _ := cli.BotGet(account.Phone)
 	jsonOK(w, map[string]any{"account": account, "process": proc}, 200)
 }
@@ -309,3 +314,23 @@ func LogoutAccount(w http.ResponseWriter, r *http.Request, accountID string) {
 	}
 	jsonOK(w, map[string]any{"ok": true, "deleted": true}, 200)
 }
+
+func GetContacts(w http.ResponseWriter, r *http.Request, accountID string) {
+	p, err := store.Authenticate(r)
+	if err != nil {
+		jsonErr(w, "unauthorized", 401)
+		return
+	}
+	account, _ := store.GetAccountByIDAndUser(accountID, p.UserID)
+	if account == nil {
+		jsonErr(w, "Account not found", 404)
+		return
+	}
+	list, err := cli.GetContacts(account.Phone)
+	if err != nil {
+		jsonErr(w, err.Error(), 500)
+		return
+	}
+	jsonOK(w, list, 200)
+}
+

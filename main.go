@@ -15,7 +15,7 @@ import (
 
 var (
 	accountRe    = regexp.MustCompile(`^/accounts/([^/]+)$`)
-	accountActRe = regexp.MustCompile(`^/accounts/([^/]+)/(start|stop|restart|pause|resume|logout)$`)
+	accountActRe = regexp.MustCompile(`^/accounts/([^/]+)/(start|stop|restart|pause|resume|logout|contacts)$`)
 )
 
 func withCORS(h http.Handler) http.Handler {
@@ -164,6 +164,8 @@ func main() {
 				routes.ResumeAccount(w, r, m[1])
 			case method == "POST" && m[2] == "logout":
 				routes.LogoutAccount(w, r, m[1])
+			case method == "GET" && m[2] == "contacts":
+				routes.GetContacts(w, r, m[1])
 			default:
 				http.NotFound(w, r)
 			}

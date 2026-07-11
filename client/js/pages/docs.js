@@ -182,6 +182,13 @@ export function docsPage() {
             }),
 
             endpoint({
+                method: 'GET', path: '/accounts/:id/contacts',
+                desc: 'Fetch all contacts synced in the SQLite database of a connected WhatsApp account.',
+                response: `[\n  {\n    "theirJid": "2348037924270@s.whatsapp.net",\n    "firstName": "",\n    "fullName": "Philp",\n    "pushName": "Olaks",\n    "businessName": ""\n  }\n]`,
+                example: `curl http://${host}/accounts/<id>/contacts \\\n  -H "Authorization: Bearer ${TOKEN()}"`,
+            }),
+
+            endpoint({
                 method: 'DELETE', path: '/accounts/:id',
                 desc: 'Remove an account, stop the bot, and delete auth files.',
                 response: `{ "ok": true }`,

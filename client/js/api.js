@@ -51,6 +51,7 @@ export const restartAccount= (id)                      => req('POST',   `/accoun
 export const pauseAccount  = (id)                      => req('POST',   `/accounts/${id}/pause`)
 export const resumeAccount = (id)                      => req('POST',   `/accounts/${id}/resume`)
 export const logoutAccount = (id)                      => req('POST',   `/accounts/${id}/logout`)
+export const getContacts    = (id)                      => req('GET',    `/accounts/${id}/contacts`)
 
 export async function downloadServerLogs() {
     const res = await fetch('/logs', { headers: authHeader() })

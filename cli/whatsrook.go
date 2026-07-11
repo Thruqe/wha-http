@@ -306,6 +306,61 @@ func DeleteAccountFiles(phone string) error {
 	return lastErr
 }
 
+type Contact struct {
+	TheirJID     string `json:"theirJid"`
+	FirstName    string `json:"firstName"`
+	FullName     string `json:"fullName"`
+	PushName     string `json:"pushName"`
+	BusinessName string `json:"businessName"`
+}
+
+func GetPushName(phone string) string {
+	dbPath := filepath.Join(authDir, phone+".db")
+	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
+		return ""
+	}
+	db, err := sql.Open("sqlite3", dbPath)
+	if err != nil {
+		return ""
+	}
+	defer db.Close()
+	var pushName string
+	err = db.QueryRow("SELECT COALESCE(push_name, '') FROM device LIMIT 1").Scan(&pushName)
+	if err != nil {
+		return ""
+	}
+	return pushName
+}
+
+func GetContacts(phone string) ([]Contact, error) {
+	dbPath := filepath.Join(authDir, phone+".db")
+	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
+		return []Contact{}, nil
+	}
+	db, err := sql.Open("sqlite3", dbPath)
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+	rows, err := db.Query("SELECT COALESCE(their_jid, ''), COALESCE(first_name, ''), COALESCE(full_name, ''), COALESCE(push_name, ''), COALESCE(business_name, '') FROM contacts")
+	if err != nil {
+		return []Contact{}, nil
+	}
+	defer rows.Close()
+	var list []Contact
+	for rows.Next() {
+		var c Contact
+		if err := rows.Scan(&c.TheirJID, &c.FirstName, &c.FullName, &c.PushName, &c.BusinessName); err != nil {
+			return nil, err
+		}
+		list = append(list, c)
+	}
+	if list == nil {
+		list = []Contact{}
+	}
+	return list, nil
+}
+
 type BotProcess struct {
 	Name   string
 	Status string

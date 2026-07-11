@@ -13,6 +13,7 @@ type WaAccount struct {
 	Status    string `json:"status"`
 	Client    string `json:"client"`
 	CreatedAt int64  `json:"createdAt"`
+	PushName  string `json:"pushName,omitempty"`
 }
 
 func GetAccountByID(accountID string) (*WaAccount, error) {

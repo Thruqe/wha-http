@@ -1,5 +1,5 @@
 /** pages/dashboard.js */
-import { listAccounts, addAccount, removeAccount, stats, downloadServerLogs } from '../api.js'
+import { listAccounts, addAccount, removeAccount, stats, downloadServerLogs, getContacts } from '../api.js'
 import { getUser, logout } from '../auth.js'
 import { navigate } from '../router.js'
 import { el, formHandler, statusBadge, loader, toast } from '../dom.js'
@@ -89,6 +89,96 @@ export function dashboardPage() {
         el('div', { style: 'padding: 0 8px 12px' }, dashGraphCanvas),
     )
 
+    // ── Contacts Section State & DOM ─────────────────────────────────────
+    const contactAccountSelect = el('select', { id: 'contact-account-select', style: 'flex:1;' })
+    const contactSearch = el('input', { type: 'text', placeholder: 'Search contacts by name or phone…', style: 'flex:2;' })
+    const contactsCountEl = el('span', {}, '0')
+    const contactsListEl = el('div', { class: 'contacts-list-container', style: 'max-height: 300px; overflow-y: auto; margin-top: 10px;' })
+
+    let allContacts = []
+
+    function updateContactAccountSelect(list) {
+        contactAccountSelect.innerHTML = ''
+        const connectedAccs = list.filter(a => a.status === 'connected')
+        if (connectedAccs.length === 0) {
+            contactAccountSelect.append(el('option', { value: '' }, 'No connected accounts'))
+            contactsListEl.innerHTML = '<p class="muted">Connect a WhatsApp account to view contacts.</p>'
+            contactsCountEl.textContent = '0'
+            return
+        }
+        contactAccountSelect.append(el('option', { value: '' }, '-- Select Account --'))
+        for (const acc of connectedAccs) {
+            const label = acc.pushName ? `+${acc.phone} (${acc.pushName})` : `+${acc.phone}`
+            contactAccountSelect.append(el('option', { value: acc.id }, label))
+        }
+    }
+
+    async function loadContacts(accountId) {
+        if (!accountId) {
+            allContacts = []
+            renderContacts()
+            return
+        }
+        contactsListEl.innerHTML = ''
+        contactsListEl.append(loader('sm'))
+        try {
+            const list = await getContacts(accountId)
+            allContacts = list || []
+            renderContacts()
+        } catch (err) {
+            contactsListEl.innerHTML = `<p class="alert alert-error">${err.message}</p>`
+        }
+    }
+
+    function renderContacts() {
+        contactsListEl.innerHTML = ''
+        const q = contactSearch.value.toLowerCase().trim()
+        const filtered = allContacts.filter(c => {
+            const name = (c.fullName || c.pushName || c.businessName || '').toLowerCase()
+            const phone = (c.theirJid || '').toLowerCase()
+            return name.includes(q) || phone.includes(q)
+        })
+
+        contactsCountEl.textContent = String(filtered.length)
+
+        if (filtered.length === 0) {
+            contactsListEl.innerHTML = '<p class="muted" style="padding:10px 0;">No contacts found.</p>'
+            return
+        }
+
+        for (const c of filtered) {
+            const name = c.fullName || c.pushName || c.businessName || 'Unknown Name'
+            const phone = c.theirJid.split('@')[0]
+            const isBiz = c.businessName ? true : false
+
+            const contactRow = el('div', {
+                class: 'contact-row',
+                style: 'display:flex; align-items:center; justify-content:space-between; padding:10px 14px; border-bottom:1px solid var(--c-border); gap:12px;'
+            },
+                el('div', { style: 'display:flex; align-items:center; gap:10px;' },
+                    el('i', {
+                        class: isBiz ? 'fi fi-rr-briefcase' : 'fi fi-rr-user',
+                        style: 'font-size:16px; color:var(--c-text-3);'
+                    }),
+                    el('div', {},
+                        el('div', { style: 'font-weight:600; font-size:14px; color:var(--c-text);' }, name),
+                        el('div', { style: 'font-size:12px; color:var(--c-text-3);' }, `+${phone}`)
+                    )
+                ),
+                isBiz ? el('span', { class: 'badge badge-connected', style: 'font-size:10px; padding:1px 6px;' }, 'Business') : null
+            )
+            contactsListEl.append(contactRow)
+        }
+    }
+
+    contactAccountSelect.addEventListener('change', (e) => {
+        loadContacts(e.target.value)
+    })
+
+    contactSearch.addEventListener('input', () => {
+        renderContacts()
+    })
+
     /** @type {Array<{id:string,phone:string,status:string}>} */
     let accounts = []
 
@@ -112,9 +202,15 @@ export function dashboardPage() {
                 'aria-label': `Account ${acc.phone}`,
             },
                 el('div', { class: 'account-row-left' },
-                    el('i', { class: 'fi fi-rr-whatsapp', style: 'font-size:20px;color:var(--c-text-3)' }),
+                    el('i', {
+                        class: 'fi fi-rr-whatsapp',
+                        style: `font-size:20px;color:${acc.status === 'connected' ? '#25d366' : 'var(--c-text-3)'}`
+                    }),
                     el('span', { class: 'account-phone' }, '+' + acc.phone),
-                    statusBadge(acc.status),
+                    acc.status === 'connected' && acc.pushName
+                        ? el('span', { class: 'push-name', style: 'font-weight:600;color:var(--c-text-2);font-size:13px;margin-left:6px;' }, `(${acc.pushName})`)
+                        : null,
+                    acc.status !== 'connected' ? statusBadge(acc.status) : null,
                 ),
                 removeBtn,
             )
@@ -131,6 +227,7 @@ export function dashboardPage() {
                     accounts = accounts.filter(a => a.id !== acc.id)
                     renderList()
                     loadTelemetry()
+                    updateContactAccountSelect(accounts)
                 } catch (err) {
                     toast(err.message, 'error')
                 }
@@ -202,6 +299,21 @@ export function dashboardPage() {
             loadingEl,
             listEl,
         ),
+        el('div', { class: 'card', style: 'padding: 20px 22px;' },
+            el('h2', { style: 'font-size:15px;font-weight:600;margin-bottom:14px;display:flex;align-items:center;gap:8px;justify-content:space-between;' },
+                el('span', { style: 'display:flex; align-items:center; gap:8px;' },
+                    el('i', { class: 'fi fi-rr-address-book fi-sm' }), 'WhatsApp Contacts'
+                ),
+                el('span', { class: 'badge', style: 'font-size:11px; font-weight:700;' },
+                    contactsCountEl, ' contacts'
+                )
+            ),
+            el('div', { style: 'display:flex; gap:10px; margin-bottom:14px;' },
+                contactAccountSelect,
+                contactSearch
+            ),
+            contactsListEl,
+        ),
     )
 
     const root = el('div', { style: 'display:contents' }, header, main)
@@ -224,6 +336,7 @@ export function dashboardPage() {
         loadingEl.remove()
         renderList()
         loadTelemetry()
+        updateContactAccountSelect(list)
     }).catch(err => {
         loadingEl.remove()
         toast(err.message, 'error')
