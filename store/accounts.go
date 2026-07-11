@@ -11,16 +11,17 @@ type WaAccount struct {
 	Phone     string `json:"phone"`
 	Port      int    `json:"port"`
 	Status    string `json:"status"`
+	Client    string `json:"client"`
 	CreatedAt int64  `json:"createdAt"`
 }
 
 func GetAccountByID(accountID string) (*WaAccount, error) {
 	row := DB.QueryRow(
-		`SELECT id, user_id, phone, port, status, created_at FROM wa_accounts WHERE id = ?`,
+		`SELECT id, user_id, phone, port, status, client, created_at FROM wa_accounts WHERE id = ?`,
 		accountID,
 	)
 	a := &WaAccount{}
-	err := row.Scan(&a.ID, &a.UserID, &a.Phone, &a.Port, &a.Status, &a.CreatedAt)
+	err := row.Scan(&a.ID, &a.UserID, &a.Phone, &a.Port, &a.Status, &a.Client, &a.CreatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
@@ -29,11 +30,24 @@ func GetAccountByID(accountID string) (*WaAccount, error) {
 
 func GetAccountByIDAndUser(accountID, userID string) (*WaAccount, error) {
 	row := DB.QueryRow(
-		`SELECT id, user_id, phone, port, status, created_at FROM wa_accounts WHERE id = ? AND user_id = ?`,
+		`SELECT id, user_id, phone, port, status, client, created_at FROM wa_accounts WHERE id = ? AND user_id = ?`,
 		accountID, userID,
 	)
 	a := &WaAccount{}
-	err := row.Scan(&a.ID, &a.UserID, &a.Phone, &a.Port, &a.Status, &a.CreatedAt)
+	err := row.Scan(&a.ID, &a.UserID, &a.Phone, &a.Port, &a.Status, &a.Client, &a.CreatedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	return a, err
+}
+
+func GetAccountByPhone(phone string) (*WaAccount, error) {
+	row := DB.QueryRow(
+		`SELECT id, user_id, phone, port, status, client, created_at FROM wa_accounts WHERE phone = ?`,
+		phone,
+	)
+	a := &WaAccount{}
+	err := row.Scan(&a.ID, &a.UserID, &a.Phone, &a.Port, &a.Status, &a.Client, &a.CreatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
@@ -42,7 +56,7 @@ func GetAccountByIDAndUser(accountID, userID string) (*WaAccount, error) {
 
 func GetAccountsByUser(userID string) ([]WaAccount, error) {
 	rows, err := DB.Query(
-		`SELECT id, user_id, phone, port, status, created_at FROM wa_accounts WHERE user_id = ?`,
+		`SELECT id, user_id, phone, port, status, client, created_at FROM wa_accounts WHERE user_id = ?`,
 		userID,
 	)
 	if err != nil {
@@ -52,7 +66,7 @@ func GetAccountsByUser(userID string) ([]WaAccount, error) {
 	var list []WaAccount
 	for rows.Next() {
 		var a WaAccount
-		if err := rows.Scan(&a.ID, &a.UserID, &a.Phone, &a.Port, &a.Status, &a.CreatedAt); err != nil {
+		if err := rows.Scan(&a.ID, &a.UserID, &a.Phone, &a.Port, &a.Status, &a.Client, &a.CreatedAt); err != nil {
 			return nil, err
 		}
 		list = append(list, a)
@@ -65,14 +79,19 @@ func GetAccountsByUser(userID string) ([]WaAccount, error) {
 
 func CreateAccount(a WaAccount) error {
 	_, err := DB.Exec(
-		`INSERT INTO wa_accounts (id, user_id, phone, port, status) VALUES (?, ?, ?, ?, ?)`,
-		a.ID, a.UserID, a.Phone, a.Port, a.Status,
+		`INSERT INTO wa_accounts (id, user_id, phone, port, status, client) VALUES (?, ?, ?, ?, ?, ?)`,
+		a.ID, a.UserID, a.Phone, a.Port, a.Status, a.Client,
 	)
 	return err
 }
 
 func UpdateAccountStatus(accountID, status string) error {
 	_, err := DB.Exec(`UPDATE wa_accounts SET status = ? WHERE id = ?`, status, accountID)
+	return err
+}
+
+func UpdateAccountStatusAndClient(accountID, status, client string) error {
+	_, err := DB.Exec(`UPDATE wa_accounts SET status = ?, client = ? WHERE id = ?`, status, client, accountID)
 	return err
 }
 
@@ -108,7 +127,7 @@ func AllocatePort() (int, error) {
 
 func GetAllActiveAccounts() ([]WaAccount, error) {
 	rows, err := DB.Query(
-		`SELECT id, user_id, phone, port, status, created_at FROM wa_accounts WHERE status != 'disconnected'`,
+		`SELECT id, user_id, phone, port, status, client, created_at FROM wa_accounts WHERE status NOT IN ('stopped', 'paused', 'disconnected')`,
 	)
 	if err != nil {
 		return nil, err
@@ -117,7 +136,7 @@ func GetAllActiveAccounts() ([]WaAccount, error) {
 	var list []WaAccount
 	for rows.Next() {
 		var a WaAccount
-		if err := rows.Scan(&a.ID, &a.UserID, &a.Phone, &a.Port, &a.Status, &a.CreatedAt); err != nil {
+		if err := rows.Scan(&a.ID, &a.UserID, &a.Phone, &a.Port, &a.Status, &a.Client, &a.CreatedAt); err != nil {
 			return nil, err
 		}
 		list = append(list, a)

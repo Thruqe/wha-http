@@ -1,11 +1,17 @@
 package cli
 
 import (
+	"bufio"
+	"database/sql"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"sync"
+	"syscall"
+
+	_ "github.com/mattn/go-sqlite3"
 )
 
 var (
@@ -43,11 +49,90 @@ var (
 	lastKnownArgs = map[string][]string{} // keyed by SessionName
 )
 
-// start launches whatsrook with the given extra args and registers it in procs.
-// If a process for this phone is already running it is stopped first.
-func start(phone string, extraArgs []string) error {
+// OnLog is called whenever the child process outputs a line to stdout or stderr.
+var OnLog func(phone string, line string)
+
+func scanLogs(reader io.ReadCloser, phone string, isStderr bool) {
+	defer reader.Close()
+	scanner := bufio.NewScanner(reader)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if isStderr {
+			fmt.Fprintln(os.Stderr, fmt.Sprintf("[%s] %s", SessionName(phone), line))
+		} else {
+			fmt.Fprintln(os.Stdout, fmt.Sprintf("[%s] %s", SessionName(phone), line))
+		}
+		if OnLog != nil {
+			OnLog(phone, line)
+		}
+	}
+}
+
+func prepareSessionDB(phone string) error {
+	if err := os.MkdirAll(authDir, 0755); err != nil {
+		return err
+	}
+	dbPath := filepath.Join(authDir, phone+".db")
+	db, err := sql.Open("sqlite3", dbPath)
+	if err != nil {
+		return fmt.Errorf("failed to open session db: %w", err)
+	}
+	defer db.Close()
+
+	_, err = db.Exec("CREATE TABLE IF NOT EXISTS call_audio_config (our_jid TEXT, sender TEXT, file_path TEXT, updated_at INTEGER);")
+	if err != nil {
+		return fmt.Errorf("failed to prepare call_audio_config: %w", err)
+	}
+	return nil
+}
+
+func runCmd(phone string, args []string) error {
 	name := SessionName(phone)
 
+	if err := prepareSessionDB(phone); err != nil {
+		return fmt.Errorf("prepare db failed: %w", err)
+	}
+
+	cmd := exec.Command(whatsrookBin, args...)
+	stdoutPipe, err := cmd.StdoutPipe()
+	if err != nil {
+		return fmt.Errorf("stdout pipe failed: %w", err)
+	}
+	stderrPipe, err := cmd.StderrPipe()
+	if err != nil {
+		return fmt.Errorf("stderr pipe failed: %w", err)
+	}
+
+	fmt.Printf("[whatsrook] starting: %s %v\n", whatsrookBin, args)
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("whatsrook start failed: %w", err)
+	}
+
+	go scanLogs(stdoutPipe, phone, false)
+	go scanLogs(stderrPipe, phone, true)
+
+	p := &proc{cmd: cmd, done: make(chan struct{})}
+	mu.Lock()
+	procs[name] = p
+	lastKnownArgs[name] = args
+	mu.Unlock()
+
+	go func() {
+		_ = cmd.Wait()
+		close(p.done)
+		mu.Lock()
+		if procs[name] == p {
+			delete(procs, name)
+		}
+		mu.Unlock()
+		fmt.Printf("[whatsrook] process exited: %s\n", name)
+	}()
+
+	return nil
+}
+
+func start(phone string, extraArgs []string) error {
+	name := SessionName(phone)
 	mu.Lock()
 	// Kill any existing process for this phone
 	if p, ok := procs[name]; ok {
@@ -62,50 +147,21 @@ func start(phone string, extraArgs []string) error {
 		"--auth-dir", authDir,
 	}, extraArgs...)
 
-	cmd := exec.Command(whatsrookBin, args...)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	// Output dynamic info logging mapping to whatsrook execution
-	fmt.Printf("[whatsrook] starting: %s %v\n", whatsrookBin, args)
-	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("whatsrook start failed: %w", err)
-	}
-
-	p := &proc{cmd: cmd, done: make(chan struct{})}
-	mu.Lock()
-	procs[name] = p
-	lastKnownArgs[name] = args
-	mu.Unlock()
-
-	// Reap the process and clean up the map when it exits
-	go func() {
-		_ = cmd.Wait()
-		close(p.done)
-		mu.Lock()
-		// Only remove if it's still our entry (not replaced by a newer start)
-		if procs[name] == p {
-			delete(procs, name)
-		}
-		mu.Unlock()
-		fmt.Printf("[whatsrook] process exited: %s\n", name)
-	}()
-
-	return nil
+	return runCmd(phone, args)
 }
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
-func BotStart(phone string, port int, _, _ bool) error {
-	return start(phone, []string{"--port", fmt.Sprintf("%d", port)})
+func BotStart(phone string, port int, clientType string) error {
+	return start(phone, []string{"--port", fmt.Sprintf("%d", port), "--client", clientType})
 }
 
-func BotStartWithQr(phone string, port int, _ bool) error {
-	return start(phone, []string{"--port", fmt.Sprintf("%d", port), "--qrcode"})
+func BotStartWithQr(phone string, port int, clientType string) error {
+	return start(phone, []string{"--port", fmt.Sprintf("%d", port), "--qrcode", "--client", clientType})
 }
 
-func BotStartWithPairCode(phone string, port int, _ string, _ bool) error {
-	return start(phone, []string{"--port", fmt.Sprintf("%d", port), "--pair"})
+func BotStartWithPairCode(phone string, port int, pairPhone string, clientType string) error {
+	return start(phone, []string{"--port", fmt.Sprintf("%d", port), "--pair", "--client", clientType})
 }
 
 func BotStop(phone string) error {
@@ -149,31 +205,43 @@ func BotRestart(phone string) error {
 		<-p.done
 	}
 
-	cmd := exec.Command(whatsrookBin, args...)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("whatsrook restart failed: %w", err)
-	}
+	return runCmd(phone, args)
+}
 
-	np := &proc{cmd: cmd, done: make(chan struct{})}
+func BotPause(phone string) error {
+	name := SessionName(phone)
 	mu.Lock()
-	procs[name] = np
-	lastKnownArgs[name] = args
+	p, ok := procs[name]
 	mu.Unlock()
 
-	go func() {
-		_ = cmd.Wait()
-		close(np.done)
-		mu.Lock()
-		if procs[name] == np {
-			delete(procs, name)
-		}
-		mu.Unlock()
-		fmt.Printf("[whatsrook] process exited: %s\n", name)
-	}()
+	if !ok || p.cmd.Process == nil {
+		return fmt.Errorf("whatsrook pause: process not running for %s", phone)
+	}
 
-	return nil
+	fmt.Printf("[whatsrook] pausing %s\n", name)
+	return p.cmd.Process.Signal(syscall.SIGSTOP)
+}
+
+func BotResume(phone string) error {
+	name := SessionName(phone)
+	mu.Lock()
+	p, ok := procs[name]
+	var args []string
+	if !ok {
+		args = lastKnownArgs[name]
+	}
+	mu.Unlock()
+
+	if ok && p.cmd.Process != nil {
+		fmt.Printf("[whatsrook] resuming %s\n", name)
+		return p.cmd.Process.Signal(syscall.SIGCONT)
+	}
+
+	if len(args) == 0 {
+		return fmt.Errorf("whatsrook resume: no running process or saved configuration for %s", phone)
+	}
+
+	return runCmd(phone, args)
 }
 
 func BotDelete(phone string) error {
@@ -219,6 +287,23 @@ func BotLogout(phone string) error {
 		return fmt.Errorf("whatsrook logout failed: %w", err)
 	}
 	return nil
+}
+
+// DeleteAccountFiles removes on-disk session files for a phone number.
+func DeleteAccountFiles(phone string) error {
+	patterns := []string{
+		filepath.Join(authDir, phone+".db"),
+		filepath.Join(authDir, phone+".db-shm"),
+		filepath.Join(authDir, phone+".db-wal"),
+		filepath.Join(authDir, phone+".json"),
+	}
+	var lastErr error
+	for _, p := range patterns {
+		if err := os.Remove(p); err != nil && !os.IsNotExist(err) {
+			lastErr = err
+		}
+	}
+	return lastErr
 }
 
 type BotProcess struct {

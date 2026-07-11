@@ -12,6 +12,7 @@ import (
 	"github.com/coder/websocket"
 	"github.com/coder/websocket/wsjson"
 	"github.com/Thruqe/whatsrook/cli"
+	"github.com/Thruqe/whatsrook/network"
 	"github.com/Thruqe/whatsrook/store"
 )
 
@@ -34,7 +35,19 @@ var (
 	upstreams   = map[string]*websocket.Conn{}
 	upstreamCtx = map[string]upstreamState{}
 	lastEvent   = map[string][]byte{}
+	eventHistory = map[string][][]byte{} // keyed by accountID, containing recent events
 )
+
+func cacheEvent(accountID string, data []byte) {
+	mu.Lock()
+	defer mu.Unlock()
+	history := eventHistory[accountID]
+	history = append(history, data)
+	if len(history) > 100 {
+		history = history[len(history)-100:]
+	}
+	eventHistory[accountID] = history
+}
 
 const (
 	retryDelay   = 500 * time.Millisecond
@@ -67,6 +80,7 @@ func sendEvent(c *client, typ string, payload map[string]any, id *string) {
 // broadcastRaw safely copies the given raw byte array to all active
 // web client connections subscribed to the specified account ID.
 func broadcastRaw(accountID string, data []byte) {
+	cacheEvent(accountID, data)
 	mu.RLock()
 	subs := subscribers[accountID]
 	mu.RUnlock()
@@ -199,11 +213,31 @@ func connectUpstream(accountID, phone string, port int) {
 	connCancel()
 
 	for restartAttempt := 1; restartAttempt <= maxRestarts; restartAttempt++ {
+		// Wait if network is offline
+		for !network.IsOnline() {
+			Warn("[network] web.whatsapp.com is unreachable, waiting 5 seconds before retrying...")
+			time.Sleep(5 * time.Second)
+		}
+
 		Warn("[proxy] upstream did not come up, restarting process attempt=%d/%d account=%s phone=%s",
 			restartAttempt, maxRestarts, accountID, phone)
 
-		if err := cli.BotRestart(phone); err != nil {
-			Error("[proxy] restart failed attempt=%d account=%s err=%v", restartAttempt, accountID, err)
+		acc, err := store.GetAccountByID(accountID)
+		var startErr error
+		if err == nil && acc != nil {
+			if acc.Status == "pending_qr" {
+				startErr = cli.BotStartWithQr(acc.Phone, acc.Port, acc.Client)
+			} else if acc.Status == "pending_pair" {
+				startErr = cli.BotStartWithPairCode(acc.Phone, acc.Port, acc.Phone, acc.Client)
+			} else {
+				startErr = cli.BotStart(acc.Phone, acc.Port, acc.Client)
+			}
+		} else {
+			startErr = cli.BotRestart(phone)
+		}
+
+		if startErr != nil {
+			Error("[proxy] restart failed attempt=%d account=%s err=%v", restartAttempt, accountID, startErr)
 			continue
 		}
 
@@ -310,6 +344,17 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 
 	sendEvent(c, "connected", map[string]any{"accountId": accountID}, nil)
 
+	// Replay history
+	mu.RLock()
+	history := eventHistory[accountID]
+	mu.RUnlock()
+	for _, cachedMsg := range history {
+		select {
+		case c.send <- cachedMsg:
+		default:
+		}
+	}
+
 	mu.RLock()
 	cached, hasCached := lastEvent[accountID]
 	mu.RUnlock()
@@ -325,8 +370,10 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 		Trace("[proxy] no cached event to replay for account=%s", accountID)
 	}
 
-	Trace("[proxy] ensuring upstream for account=%s port=%d", accountID, account.Port)
-	go connectUpstream(accountID, account.Phone, account.Port)
+	if account.Status != "stopped" && account.Status != "paused" {
+		Trace("[proxy] ensuring upstream for account=%s port=%d", accountID, account.Port)
+		go connectUpstream(accountID, account.Phone, account.Port)
+	}
 
 	// write pump
 	go func() {

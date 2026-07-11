@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS wa_accounts (
     phone       TEXT NOT NULL UNIQUE,
     port        INTEGER NOT NULL UNIQUE,
     status      TEXT NOT NULL DEFAULT 'pending_qr',
+    client      TEXT NOT NULL DEFAULT 'chrome',
     created_at  INTEGER NOT NULL DEFAULT (unixepoch())
 );
 

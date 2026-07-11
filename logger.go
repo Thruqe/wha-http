@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/rs/zerolog"
@@ -79,7 +80,29 @@ var logger zerolog.Logger
 func init() {
 	zerolog.TimeFieldFormat = time.RFC3339
 	zerolog.SetGlobalLevel(zerolog.TraceLevel)
-	logger = zerolog.New(customWriter{}).With().Timestamp().Logger()
+
+	// Open logs.txt file
+	logFile, err := os.OpenFile("logs.txt", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	var multi zerolog.LevelWriter
+	if err != nil {
+		fmt.Printf("failed to open logs.txt: %v\n", err)
+		multi = zerolog.MultiLevelWriter(customWriter{})
+	} else {
+		fileWriter := zerolog.ConsoleWriter{
+			Out:        logFile,
+			NoColor:    true,
+			TimeFormat: "15:04:05",
+			FormatLevel: func(i interface{}) string {
+				return strings.ToUpper(fmt.Sprintf("%-5s", i))
+			},
+			FormatMessage: func(i interface{}) string {
+				return fmt.Sprintf("(wha-http): %s", i)
+			},
+		}
+		multi = zerolog.MultiLevelWriter(customWriter{}, fileWriter)
+	}
+
+	logger = zerolog.New(multi).With().Timestamp().Logger()
 }
 
 func Trace(msg string, args ...any) { logger.Trace().Msgf(msg, args...) }

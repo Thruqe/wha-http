@@ -41,11 +41,25 @@ export const me        = () =>
 export const stats     = () =>
     req('GET', '/stats')
 
-// Accounts
 export const listAccounts  = ()                        => req('GET',    '/accounts')
-export const addAccount    = (phone, mode = 'pair', pairPhone) =>
-    req('POST', '/accounts', { phone, mode, ...(pairPhone ? { pairPhone } : {}) })
+export const addAccount    = (phone)                   => req('POST', '/accounts', { phone })
+export const startAccount  = (id, mode, client)        => req('POST',   `/accounts/${id}/start`, { mode, client })
 export const getAccount    = (id)                      => req('GET',    `/accounts/${id}`)
 export const removeAccount = (id)                      => req('DELETE', `/accounts/${id}`)
 export const stopAccount   = (id)                      => req('POST',   `/accounts/${id}/stop`)
 export const restartAccount= (id)                      => req('POST',   `/accounts/${id}/restart`)
+export const pauseAccount  = (id)                      => req('POST',   `/accounts/${id}/pause`)
+export const resumeAccount = (id)                      => req('POST',   `/accounts/${id}/resume`)
+export const logoutAccount = (id)                      => req('POST',   `/accounts/${id}/logout`)
+
+export async function downloadServerLogs() {
+    const res = await fetch('/logs', { headers: authHeader() })
+    if (!res.ok) throw new Error('Failed to download logs')
+    const blob = await res.blob()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'wha-http.log'
+    a.click()
+    URL.revokeObjectURL(url)
+}
